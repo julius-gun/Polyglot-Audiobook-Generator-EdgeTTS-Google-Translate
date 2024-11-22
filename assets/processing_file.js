@@ -50,8 +50,8 @@
 		}
 	  }
 	  
-	  if (pointsSelect.value !== 'Не заменять точки') {
-		  if (pointsSelect.value == 'Заменять на три строки') {
+	  if (pointsSelect.value !== 'Don\'t replace periods') {
+		  if (pointsSelect.value == 'Replace with three lines') {
 			  fix_text = fix_text.replace(/\./g, '\r\n\r\n\r\n\r\n')
 		  } else {
 			  var new_point = pointsSelect.value[pointsSelect.value.length - 1]

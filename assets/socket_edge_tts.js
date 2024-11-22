@@ -58,7 +58,7 @@
 
 	onSocketOpen(event) {
 		this.end_message_received = false
-		this.update_stat("Запущена")
+		this.update_stat("Started")
 		
 		var my_data = this.date_to_string()
 		this.socket.send(
@@ -122,16 +122,16 @@
 	
 	update_stat(msg) {
 		let statlines = this.statArea.value.split('\n');
-		statlines[this.indexpart]= "Часть " + (this.indexpart+1).toString().padStart(4, '0') + ": " + msg
+		statlines[this.indexpart]= "Part " + (this.indexpart+1).toString().padStart(4, '0') + ": " + msg
 		this.statArea.value = statlines.join('\n')
 	}
 
 	onSocketClose() {
 		if ( !this.mp3_saved ) {
 			if ( this.end_message_received == true ) {
-				this.update_stat("         Обработка")
+				this.update_stat("         Processing")
 			} else {
-				this.update_stat("Ошибка - ПЕЕЗАПУСК")
+				this.update_stat("Error - RESTART")
 				let self = this
 				let timerId = setTimeout(function tick() {
 					self.my_uint8Array = new Uint8Array(0)
@@ -140,7 +140,7 @@
 				}, 10000)				
 			}
 		} else {
-			//this.update_stat("Сохранена и Закрыта")
+			//this.update_stat("Saved and Closed")
 		}
 		add_edge_tts(this.save_to_var)
 	}
@@ -212,7 +212,7 @@
 					this.clear()
 				}
 			}
-			this.update_stat("Сохранена")
+			this.update_stat("Saved")
 			this.obj_threads_info.count += 1
 			const stat_count = this.obj_threads_info.stat.textContent.split(' / ');
 			this.obj_threads_info.stat.textContent = String(Number(stat_count[0]) + 1) + " / " + stat_count[1]
