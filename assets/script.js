@@ -22,6 +22,40 @@ const fileButtonLex = document.getElementById('file-button-lex')
 const fileButton = document.getElementById('file-button')
 const dopSettings = document.getElementById('dop-settings-label')
 
+// Help system
+const helpSection = document.querySelector('.help-section');
+const helpTitle = document.getElementById('help-title');
+const helpText = document.getElementById('help-text');
+
+function showHelp(title, text) {
+    helpTitle.textContent = title;
+    helpText.textContent = text;
+    helpSection.classList.add('show');
+}
+
+function hideHelp() {
+    helpSection.classList.remove('show');
+}
+
+// Add help text for period replacement modes
+document.getElementById('pointstype').addEventListener('click', () => {
+    const mode = document.getElementById('pointstype').textContent;
+    const helpTexts = {
+        'V1': 'Replaces all periods in the text with the selected character.',
+        'V2': 'Preserves periods at line endings, but replaces all other periods with the selected character.',
+        'V3': 'Preserves periods at line endings, and replaces only periods followed by spaces with the selected character plus a space.'
+    };
+    showHelp('Period Replacement Mode: ' + mode, helpTexts[mode]);
+});
+
+// Hide help when clicking outside
+document.addEventListener('click', (e) => {
+    if (!e.target.closest('.help-section') && 
+        !e.target.closest('#pointstype')) {
+        hideHelp();
+    }
+});
+
 saveButton.addEventListener('click', e => start())
 dopSettings.addEventListener('click', e => change_dopSettings())
 //save_alloneButton.addEventListener('click', e => start_allone())
