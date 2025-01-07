@@ -74,7 +74,7 @@ stat_info.addEventListener('click', () => {
 });
 
 const FIRST_STRINGS_SIZE = 800
-const LAST_STRINGS_SIZE = 4200
+const LAST_STRINGS_SIZE = 3200
 var lexx = []
 var book
 var book_loaded = false
