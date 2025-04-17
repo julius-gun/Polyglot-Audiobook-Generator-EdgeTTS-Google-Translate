@@ -75,6 +75,57 @@ header {
   /* Optional: align text within the label space */
   align-self: center; /* Vertically align label with selects/controls */
 }
+.language-row-headers {
+  display: flex;
+  align-items: flex-end; /* Align text baseline towards bottom */
+  gap: 8px; /* Match gap of language rows */
+  margin-bottom: 5px; /* Space between headers and first row */
+  padding-left: 0; /* Adjust if needed based on label alignment */
+  font-weight: bold;
+  font-size: 0.9em; /* Slightly smaller than main labels */
+  color: #555; /* Dimmer color for headers */
+  flex-wrap: wrap; /* Allow wrapping if needed */
+  /* Ensure it spans the full width like the rows below */
+  padding-right: 10px; /* Add some padding to align with content below */
+}
+.bw .language-row-headers {
+  color: #333; /* Adjust header color for BW theme */
+}
+
+.header-label {
+/* Common styles for the actual header text spans */
+text-align: left; /* Align header text to the start of its column */
+padding-bottom: 2px; /* Small padding to lift text slightly */
+/* Let flex-grow handle width distribution initially */
+flex-grow: 1;
+/* Match select's min/max width constraints */
+min-width: 100px;
+max-width: 250px;
+white-space: nowrap; /* Prevent headers from wrapping */
+}
+
+/* Spacers to align headers with columns below */
+.header-spacer {
+display: block; /* Ensure spacers take up space */
+flex-shrink: 0; /* Prevent spacers from shrinking */
+}
+
+.header-label-spacer {
+flex-basis: 150px; /* Match label flex-basis */
+}
+
+.header-controls-spacer {
+/* Match voice controls width */
+flex-basis: 180px; /* Match min-width of .voice-controls */
+}
+
+.header-buttons-spacer {
+/* Approximate width for one or two small buttons */
+/* Adjust this based on actual button sizes and gap */
+flex-basis: 60px; /* Estimate for buttons + gap */
+}
+
+
 
 /* Ensure selects don't take up excessive space */
 /* Style for BOTH language and voice selects */

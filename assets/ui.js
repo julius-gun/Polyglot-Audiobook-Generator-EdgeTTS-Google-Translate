@@ -137,6 +137,8 @@ async function updateUI() {
     reloadPageButton: document.querySelector('#reload-page-button'),
     translationFinishedMessage: document.querySelector('#translation-finished-message'),
     enterSourceTextLabel: document.querySelector('h3'), // New label
+    headerLanguageLabel: document.querySelector('#header-language-label'),
+    headerVoiceLabel: document.querySelector('#header-voice-label'),
   };
 
   for (const key in uiElements) {
@@ -169,7 +171,7 @@ async function updateUI() {
           const translatedWord = await fetchTranslation(translations['en'].uiLanguage, currentLanguage);
           element.textContent = `${translatedWord}:`;
         } else {
-          // For buttons, labels, titles, etc.
+          // For buttons, labels, titles, headers etc.
           element.textContent = translatedText;
         }
       }

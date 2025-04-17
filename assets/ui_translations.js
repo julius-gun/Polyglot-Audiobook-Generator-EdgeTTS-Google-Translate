@@ -20,6 +20,8 @@ const translations = {
         prioritizedLabel: '--- Prioritized ---',
         allLanguagesLabel: '--- All Languages ---',
         multilingualLabel: '--- Multilingual ---',
+        headerLanguageLabel: 'Language',
+        headerVoiceLabel: 'Voice Selection',
         languages: { // Only keep keys needed for translation lookup
             'auto': 'Autodetect Language'
         }
