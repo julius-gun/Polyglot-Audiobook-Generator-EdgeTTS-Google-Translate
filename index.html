@@ -57,6 +57,7 @@
     <header>
       <h1>Bilingual Book Generator</h1>
       <div id="language-selector-container">
+        <button class="settings-button" id="settings-button" title="Settings">⚙️</button>
         <label id="ui-language-label" for="ui-language-selector">
           <span id="ui-language-icon">🌐</span>
           <span>UI Language:</span> <!-- Initial text, updated by JS -->
@@ -65,11 +66,13 @@
       </div>
     </header>
     <div id="language-headers" class="language-row-headers">
-        <span class="header-spacer header-label-spacer"></span> <!-- Spacer for the main label column -->
-        <span id="header-language-label" class="header-label header-language-col">Language</span> <!-- Placeholder text -->
-        <span id="header-voice-label" class="header-label header-voice-col">Voice Selection</span> <!-- Placeholder text -->
-        <span class="header-spacer header-controls-spacer"></span> <!-- Spacer for voice controls -->
-        <span class="header-spacer header-buttons-spacer"></span> <!-- Spacer for add/remove buttons -->
+      <span class="header-spacer header-label-spacer"></span> <!-- Spacer for the main label column -->
+      <span id="header-language-label" class="header-label header-language-col">Language</span>
+      <!-- Placeholder text -->
+      <span id="header-voice-label" class="header-label header-voice-col">Voice Selection</span>
+      <!-- Placeholder text -->
+      <span class="header-spacer header-controls-spacer"></span> <!-- Spacer for voice controls -->
+      <span class="header-spacer header-buttons-spacer"></span> <!-- Spacer for add/remove buttons -->
     </div>
 
     <div id="sl-container">
@@ -189,6 +192,21 @@
       <!-- End Voice Controls -->
     </div>
 
+    <div id="advanced-settings-container" class="hide"
+      style="margin-bottom: 20px; border: 1px dashed #ccc; padding: 15px; border-radius: 2px;">
+      <div class="slider-container"> <!-- Reusing existing class for consistency -->
+        <label for="max-threads">Threads:</label> <!-- Shortened label for space -->
+        <input type="range" id="max-threads" class="max-threads" min="1" max="30" value="10" step="1">
+        <span class="threads-value" id="max-threads-int">10</span> <!-- Added class, kept EdgeTTS ID -->
+      </div>
+      <!-- ADDED: Merge MP3s slider -->
+      <div class="slider-container"> <!-- Reusing existing class for consistency -->
+        <label for="mergefiles">Merge by:</label> <!-- Shortened label for space -->
+        <input type="range" id="mergefiles" class="mergefiles" min="1" max="100" value="100" step="1">
+        <span class="merge-value" id="mergefiles-str">ALL</span> <!-- Added class, kept EdgeTTS ID -->
+      </div>
+    </div>
+
     <br>
     <h3>Enter source text:</h3>
     <textarea id="source-text" placeholder="Enter your source text here..."></textarea>
@@ -211,8 +229,11 @@
       <span>ETA: Calculating...</span> <!--This will be translated-->
     </div>
     <!-- Moved Translation Finished Message Here -->
-    <div id="translation-finished-message" class="hide" style="margin-top: 10px; font-weight: bold;">Translation process
+    <div id="translation-finished-message" class="hide" style="margin-top: 10px; font-weight: bold;">Translation
+      process
       over.</div>
+    <!-- ADDED: Status Text Area (Initially Hidden) -->
+    <textarea readonly="" class="text hide" id="stat-area" style="display: block; margin-top: 10px; height: 150px; background-color: #f0f0f0; border: 1px solid #ccc; color: #333; font-family: monospace; font-size: 0.9em;" placeholder="Voice generation status will appear here..."></textarea> <!-- Added hide class -->
   </div>
   <div id="output"></div>
 
