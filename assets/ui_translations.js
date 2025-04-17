@@ -22,6 +22,7 @@ const translations = {
         multilingualLabel: '--- Multilingual ---',
         headerLanguageLabel: 'Language',
         headerVoiceLabel: 'Voice Selection',
+        insertFileButton: 'Insert Text File',
         languages: { // Only keep keys needed for translation lookup
             'auto': 'Autodetect Language'
         }

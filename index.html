@@ -18,6 +18,8 @@
   </script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.7.1/jszip.min.js"></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/FileSaver.js/2.0.5/FileSaver.min.js"></script>
+  <!-- Add JSZip -->
+  <script src="assets/jszip.min.js"></script> <!-- Assuming it's in the assets folder -->
 
   <!-- Updated JS paths and order -->
   <!-- Data and Config first -->
@@ -29,6 +31,8 @@
   <script src="assets/translation_utils.js" defer></script>
   <script src="assets/translation_api.js" defer></script>
   <script src="assets/epub_generator.js" defer></script>
+  <!-- Add Text Converter -->
+  <script src="assets/texts_converter.js" defer></script> <!-- ADDED -->
   <!-- UI Logic -->
   <script src="assets/ui.js" defer></script>
   <!-- Voice Dropdown Logic (depends on voices-data.js) -->
@@ -188,6 +192,10 @@
     <br>
     <h3>Enter source text:</h3>
     <textarea id="source-text" placeholder="Enter your source text here..."></textarea>
+    <!-- Hidden file input -->
+    <input type="file" id="file-input" accept=".txt, .fb2, .epub, .ini, .zip" multiple style="display: none;">
+    <!-- Button to trigger file input -->
+    <button id="insert-file-button" style="margin-right: 10px;">Insert Text File</button> <!-- Placeholder text -->
     <button id="generate-button">Generate Book</button>
     <!-- Moved Post-Translation Buttons Here -->
     <button id="open-book-view-button" class="hide" style="margin-left: 10px;">Open in Book-View</button>

@@ -129,6 +129,7 @@ async function updateUI() {
     targetLabel4: document.querySelector('#tl4-container label'),
     enterText: document.querySelector('#source-text'),
     generateButton: document.querySelector('#generate-button'), // Corrected selector ID
+    insertFileButton: document.getElementById('insert-file-button'), // Added button
     translatedSpan: document.querySelector('#progress-info span:first-child'),
     etaSpan: document.querySelector('#progress-info span:last-child'),
     uiLanguageLabel: document.querySelector('#ui-language-label span:last-child'),
@@ -336,12 +337,19 @@ async function createLanguageSelector() {
 // Helper function to attach event listeners
 // Depends on: generateBilingualBook (global from main.js), toggleTheme, openBookView,
 // saveEpub (from epub_generator.js), reloadPage, showTargetLang, hideTargetLang,
-// updateVoiceDropdown (from voice-dropdown-menu.js)
+// updateVoiceDropdown (from voice-dropdown-menu.js), handleFileInsert (new)
 function attachEventListeners() {
   // --- Button Listeners ---
   const generateButton = document.getElementById('generate-button');
   if (generateButton) generateButton.addEventListener('click', generateBilingualBook);
 
+  // Added: Insert File Button Listener
+  const insertFileButton = document.getElementById('insert-file-button');
+  if (insertFileButton) {
+    insertFileButton.addEventListener('click', () => {
+      document.getElementById('file-input')?.click(); // Trigger hidden file input
+    });
+  }
 
   const openBookViewButton = document.getElementById('open-book-view-button');
   if (openBookViewButton) openBookViewButton.addEventListener('click', openBookView);
@@ -395,11 +403,50 @@ function attachEventListeners() {
     slider.addEventListener('input', handleSliderChange);
   });
 
+  const fileInput = document.getElementById('file-input');
+  if (fileInput) {
+    fileInput.removeEventListener('change', handleFileInsert); // Prevent duplicates
+    fileInput.addEventListener('change', handleFileInsert);
+  }
+
   // UI language selector listener is attached within createLanguageSelector
 }
 
 // --- Event Handlers ---
 
+// Added: Handler for file input changes
+function handleFileInsert(event) {
+  const files = event.target.files;
+  if (!files || files.length === 0) {
+    return; // No file selected
+  }
+
+  const file = files[0]; // Process only the first file for now
+  const sourceTextArea = document.getElementById('source-text');
+
+  // Basic check for .txt file
+  if (file.name.toLowerCase().endsWith('.txt')) {
+    const reader = new FileReader();
+    reader.onload = (e) => {
+      if (sourceTextArea) {
+        sourceTextArea.value = e.target.result; // Insert text content
+      }
+    };
+    reader.onerror = (e) => {
+      console.error("Error reading file:", e);
+      alert("Error reading file."); // Basic error feedback
+    };
+    reader.readAsText(file);
+  } else {
+    // Handle other file types later or provide feedback
+    console.log(`File type not yet supported for direct insertion: ${file.name}`);
+    // Optionally, provide user feedback:
+    // alert(`File type "${file.name.split('.').pop()}" not supported for direct text insertion.`);
+  }
+
+  // Reset the input value to allow selecting the same file again
+  event.target.value = null;
+}
 // Handler for the initial '+' button click
 function handleAddFirstTarget() {
   showTargetLang('tl1-container');
