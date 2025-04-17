@@ -1,8 +1,9 @@
-# EdgeTTS Web Interface
+# Polyglot Audiobook Generator - EdgeTTS Google Translate
 
+# Attention, this program does not yet work correctly, please wait.
 A web-based interface for Microsoft Edge's Text-to-Speech service that allows you to convert text to speech using various neural voices.
 
-🔗 [Try it live](https://vadash.github.io/EdgeTTS/)
+🔗 [Try it live](https://julius-gun.github.io/Polyglot-Audiobook-Generator-EdgeTTS-Google-Translate/)
 
 ## Features
 
@@ -38,5 +39,6 @@ Set merge chunk size by 1. Then process with https://docs.applio.org/applio/gett
 
 ## Credits
 
-This project is a fork of the original [EdgeTTS Web Interface](https://github.com/EdgeTTS/EdgeTTS.github.io) repository.
+This project is a fork of the [EdgeTTS Web Interface](https://github.com/vadash/EdgeTTS) repository.
+It also uses parts of [bilingual-books](https://github.com/Lachy-Dauth/bilingual-books) repository.
 
