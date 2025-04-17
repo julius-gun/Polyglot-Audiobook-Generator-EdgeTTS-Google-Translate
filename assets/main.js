@@ -33,25 +33,25 @@ document.addEventListener('DOMContentLoaded', async () => {
   // Load UI language preference
   let preferredLanguage = null;
   try {
-      preferredLanguage = localStorage.getItem('uiLanguage');
+    preferredLanguage = localStorage.getItem('uiLanguage');
   } catch (e) {
-      console.warn("Could not read UI language preference from localStorage:", e);
+    console.warn("Could not read UI language preference from localStorage:", e);
   }
 
   if (preferredLanguage && languageCodes.includes(preferredLanguage)) {
-      currentLanguage = preferredLanguage;
+    currentLanguage = preferredLanguage;
   } else {
-      // Fallback to browser language if no preference stored or invalid
-      const userPreferredLanguage = navigator.language || navigator.userLanguage;
-      let browserLangCode = userPreferredLanguage; // e.g., en-US
-      if (!languageCodes.includes(browserLangCode)) {
-          browserLangCode = userPreferredLanguage.split('-')[0]; // e.g., en
-      }
-      if (browserLangCode && languageCodes.includes(browserLangCode)) {
-          currentLanguage = browserLangCode;
-      } else {
-          currentLanguage = 'en'; // Ultimate fallback
-      }
+    // Fallback to browser language if no preference stored or invalid
+    const userPreferredLanguage = navigator.language || navigator.userLanguage;
+    let browserLangCode = userPreferredLanguage; // e.g., en-US
+    if (!languageCodes.includes(browserLangCode)) {
+      browserLangCode = userPreferredLanguage.split('-')[0]; // e.g., en
+    }
+    if (browserLangCode && languageCodes.includes(browserLangCode)) {
+      currentLanguage = browserLangCode;
+    } else {
+      currentLanguage = 'en'; // Ultimate fallback
+    }
   }
 
   // --- Initial Population (will be refined by updateUI) ---
@@ -77,6 +77,12 @@ document.addEventListener('DOMContentLoaded', async () => {
   // Attach event listeners after the initial UI is built
   // attachEventListeners is now defined in ui.js
   attachEventListeners();
+
+  // --- Initialize Slider Values ---
+  // Ensure sliders show their initial values correctly
+  document.querySelectorAll('.rate-slider, .pitch-slider').forEach(slider => {
+    handleSliderChange({ target: slider }); // Trigger update using the handler
+  });
 });
 
 
@@ -104,7 +110,8 @@ async function generateBilingualBook() {
   // Collect target languages AND voices from visible dropdowns
   for (let i = 1; i <= maxLanguages; i++) {
     const container = document.getElementById(`tl${i}-container`);
-    if (!container.classList.contains('hide')) {
+    // Check if the container exists AND is NOT hidden
+    if (container && !container.classList.contains('hide')) {
       const langSelect = document.getElementById(`tl${i}`);
       const voiceSelect = document.getElementById(`tl${i}-voice`); // Get voice select
       if (langSelect && langSelect.value) {
@@ -182,3 +189,6 @@ async function generateBilingualBook() {
   document.getElementById('reload-page-button').classList.remove('hide');
 
 }
+
+// --- Helper Functions (if any specific to main.js) ---
+// Moved handleSliderChange to ui.js as it's UI manipulation

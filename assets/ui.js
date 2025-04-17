@@ -20,6 +20,7 @@ async function createLanguageDropdown(id) {
   const select = document.createElement('select');
   select.id = id;
   const isSourceLanguage = id === 'sl';
+  const isTargetLanguage1 = id === 'tl1'; // Added check for TL1
 
 
   // Separate prioritized and other languages from languageData
@@ -55,28 +56,48 @@ async function createLanguageDropdown(id) {
   // If 'en' exists and is prioritized, select it. Otherwise, select the first prioritized,
   // otherwise select the very first option in the dropdown.
   if (isSourceLanguage && select.options.length > 0) {
-      let defaultSelected = false;
-      // Try selecting 'en' if it's in prioritized
-      const enOption = select.querySelector('optgroup[label="--- Prioritized ---"] option[value="en"]');
-      if (enOption) {
-          enOption.selected = true;
-          defaultSelected = true;
-      }
+    let defaultSelected = false;
+    // Try selecting 'en' if it's in prioritized
+    const enOption = select.querySelector('optgroup[label="' + await fetchTranslation(translations['en'].prioritizedLabel, currentLanguage) + '"] option[value="en"]');
+    if (enOption) {
+      enOption.selected = true;
+      defaultSelected = true;
+    }
 
-      // If 'en' wasn't selected, try the first prioritized option
-      if (!defaultSelected && prioritizedOptions.length > 0) {
-          const firstPrioritizedValue = prioritizedOptions[0].value;
-          const firstPrioritizedOption = select.querySelector(`option[value="${firstPrioritizedValue}"]`);
-          if (firstPrioritizedOption) {
-              firstPrioritizedOption.selected = true;
-              defaultSelected = true;
-          }
+    // If 'en' wasn't selected, try the first prioritized option
+    if (!defaultSelected && prioritizedOptions.length > 0) {
+      const firstPrioritizedValue = prioritizedOptions[0].value;
+      const firstPrioritizedOption = select.querySelector(`option[value="${firstPrioritizedValue}"]`);
+      if (firstPrioritizedOption) {
+        firstPrioritizedOption.selected = true;
+        defaultSelected = true;
       }
+    }
 
-      // If still nothing selected, select the very first option overall
-      if (!defaultSelected) {
-          select.options[0].selected = true;
+    // If still nothing selected, select the very first option overall
+    if (!defaultSelected && select.options.length > 0) {
+      // Ensure we don't select a disabled option if one exists
+      for (let i = 0; i < select.options.length; i++) {
+        if (!select.options[i].disabled) {
+          select.options[i].selected = true;
+          break;
+        }
       }
+    }
+  } else if (isTargetLanguage1 && select.options.length > 0) {
+    // Default TL1 to the current UI language if possible, otherwise first non-disabled option
+    const uiLangOption = select.querySelector(`option[value="${currentLanguage}"]`);
+    if (uiLangOption && !uiLangOption.disabled) {
+      uiLangOption.selected = true;
+    } else {
+      // Select the first non-disabled option
+      for (let i = 0; i < select.options.length; i++) {
+        if (!select.options[i].disabled) {
+          select.options[i].selected = true;
+          break;
+        }
+      }
+    }
   }
 
 
@@ -179,27 +200,22 @@ async function updateUI() {
   // Update SL voice dropdown based on the (potentially restored) SL language value
   const slVoiceSelect = document.getElementById('sl-voice');
   if (slVoiceSelect && typeof updateVoiceDropdown === 'function') {
-      updateVoiceDropdown(slVoiceSelect, newSlSelect.value);
+    updateVoiceDropdown(slVoiceSelect, newSlSelect.value);
   }
 
-  // --- Target Language 1 ---
+  // --- Target Language 1 (even if hidden) ---
   const newTl1Select = await createLanguageDropdown('tl1');
   const oldTl1Select = tl1Container.querySelector('select#tl1');
   if (oldTl1Select) oldTl1Select.replaceWith(newTl1Select); else tl1Container.insertBefore(newTl1Select, tl1Container.querySelector('#tl1-voice'));
 
-  // Set value: Use previous value if available, otherwise default to UI language
+  // Set value: Use previous value if available, otherwise default (handled in createLanguageDropdown)
   if (currentTl1Value) {
-      newTl1Select.value = currentTl1Value;
-  } else if (currentLanguage && newTl1Select.querySelector(`option[value="${currentLanguage}"]`)) {
-      // Default tl1 to the current UI language if no previous value exists and it's a valid option
-      newTl1Select.value = currentLanguage;
+    newTl1Select.value = currentTl1Value;
   }
-  // If neither condition is met, the browser default (usually the first option) will remain selected.
-
   // Update TL1 voice dropdown (existing code)
   const tl1VoiceSelect = document.getElementById('tl1-voice');
   if (tl1VoiceSelect && typeof updateVoiceDropdown === 'function') {
-      updateVoiceDropdown(tl1VoiceSelect, newTl1Select.value);
+    updateVoiceDropdown(tl1VoiceSelect, newTl1Select.value);
   }
 
   // --- Target Language 2 (if visible) ---
@@ -211,14 +227,14 @@ async function updateUI() {
     // Update TL2 voice dropdown
     const tl2VoiceSelect = document.getElementById('tl2-voice');
     if (tl2VoiceSelect && typeof updateVoiceDropdown === 'function') {
-        updateVoiceDropdown(tl2VoiceSelect, newTl2Select.value);
+      updateVoiceDropdown(tl2VoiceSelect, newTl2Select.value);
     }
   } else {
-      // Ensure voice dropdown is cleared if container is hidden
-      const tl2VoiceSelect = document.getElementById('tl2-voice');
-      if (tl2VoiceSelect && typeof updateVoiceDropdown === 'function') {
-          updateVoiceDropdown(tl2VoiceSelect, null); // Pass null to clear
-      }
+    // Ensure voice dropdown is cleared if container is hidden
+    const tl2VoiceSelect = document.getElementById('tl2-voice');
+    if (tl2VoiceSelect && typeof updateVoiceDropdown === 'function') {
+      updateVoiceDropdown(tl2VoiceSelect, null); // Pass null to clear
+    }
   }
 
   // --- Target Language 3 (if visible) ---
@@ -230,13 +246,13 @@ async function updateUI() {
     // Update TL3 voice dropdown
     const tl3VoiceSelect = document.getElementById('tl3-voice');
     if (tl3VoiceSelect && typeof updateVoiceDropdown === 'function') {
-        updateVoiceDropdown(tl3VoiceSelect, newTl3Select.value);
+      updateVoiceDropdown(tl3VoiceSelect, newTl3Select.value);
     }
   } else {
-      const tl3VoiceSelect = document.getElementById('tl3-voice');
-      if (tl3VoiceSelect && typeof updateVoiceDropdown === 'function') {
-          updateVoiceDropdown(tl3VoiceSelect, null);
-      }
+    const tl3VoiceSelect = document.getElementById('tl3-voice');
+    if (tl3VoiceSelect && typeof updateVoiceDropdown === 'function') {
+      updateVoiceDropdown(tl3VoiceSelect, null);
+    }
   }
 
   // --- Target Language 4 (if visible) ---
@@ -248,13 +264,13 @@ async function updateUI() {
     // Update TL4 voice dropdown
     const tl4VoiceSelect = document.getElementById('tl4-voice');
     if (tl4VoiceSelect && typeof updateVoiceDropdown === 'function') {
-        updateVoiceDropdown(tl4VoiceSelect, newTl4Select.value);
+      updateVoiceDropdown(tl4VoiceSelect, newTl4Select.value);
     }
   } else {
-      const tl4VoiceSelect = document.getElementById('tl4-voice');
-      if (tl4VoiceSelect && typeof updateVoiceDropdown === 'function') {
-          updateVoiceDropdown(tl4VoiceSelect, null);
-      }
+    const tl4VoiceSelect = document.getElementById('tl4-voice');
+    if (tl4VoiceSelect && typeof updateVoiceDropdown === 'function') {
+      updateVoiceDropdown(tl4VoiceSelect, null);
+    }
   }
 
   // --- Update UI language selector ---
@@ -335,24 +351,29 @@ function attachEventListeners() {
   if (reloadPageButton) reloadPageButton.addEventListener('click', reloadPage);
 
   // --- Add/Remove Language Button Listeners ---
-  document.querySelectorAll('.add-lang-button').forEach(button => {
-    const targetContainerId = button.getAttribute('onclick')?.match(/'(tl\d+-container)'/)?.[1];
+
+  // Listener for the initial '+' button next to source language
+  const addFirstTargetButton = document.getElementById('add-first-target-button');
+  if (addFirstTargetButton) {
+    addFirstTargetButton.removeEventListener('click', handleAddFirstTarget); // Prevent duplicates
+    addFirstTargetButton.addEventListener('click', handleAddFirstTarget);
+  }
+
+  // Listeners for '+' buttons within target language containers
+  document.querySelectorAll('.add-lang-button:not(#add-first-target-button)').forEach(button => {
+    const targetContainerId = button.dataset.targetContainerId; // Use data attribute
     if (targetContainerId) {
-      // Ensure onclick doesn't conflict with event listener
-      button.onclick = null; // Remove inline handler
       button.removeEventListener('click', showTargetLangHandler); // Remove previous listener if any
       button.addEventListener('click', showTargetLangHandler); // Add listener
-      button.dataset.targetContainerId = targetContainerId; // Store target ID
     }
   });
+
+  // Listeners for '-' buttons within target language containers
   document.querySelectorAll('.remove-lang-button').forEach(button => {
-    const targetContainerId = button.getAttribute('onclick')?.match(/'(tl\d+-container)'/)?.[1];
+    const targetContainerId = button.dataset.targetContainerId; // Use data attribute
     if (targetContainerId) {
-      // Ensure onclick doesn't conflict with event listener
-      button.onclick = null; // Remove inline handler
       button.removeEventListener('click', hideTargetLangHandler); // Remove previous listener if any
       button.addEventListener('click', hideTargetLangHandler); // Add listener
-      button.dataset.targetContainerId = targetContainerId; // Store target ID
     }
   });
 
@@ -365,43 +386,69 @@ function attachEventListeners() {
     select.addEventListener('change', handleLanguageChange);
   });
 
+  // --- Slider Change Listeners ---
+  const sliders = document.querySelectorAll('.rate-slider, .pitch-slider');
+  sliders.forEach(slider => {
+    slider.removeEventListener('input', handleSliderChange); // Prevent duplicates
+    slider.addEventListener('input', handleSliderChange);
+  });
+
   // UI language selector listener is attached within createLanguageSelector
 }
 
 // --- Event Handlers ---
 
-// Handler for language dropdown changes
-function handleLanguageChange(event) {
-    const langSelect = event.target;
-    const selectedLangCode = langSelect.value;
-    const langSelectId = langSelect.id; // e.g., "sl", "tl1"
-
-    // Determine the corresponding voice select ID
-    const voiceSelectId = langSelectId + '-voice'; // e.g., "sl-voice", "tl1-voice"
-    const voiceSelect = document.getElementById(voiceSelectId);
-
-    if (voiceSelect && typeof updateVoiceDropdown === 'function') {
-        console.log(`Language changed for ${langSelectId} to ${selectedLangCode}. Updating ${voiceSelectId}.`);
-        updateVoiceDropdown(voiceSelect, selectedLangCode);
-    } else {
-        console.warn(`Could not find voice select '${voiceSelectId}' or updateVoiceDropdown function.`);
-    }
+// Handler for the initial '+' button click
+function handleAddFirstTarget() {
+  showTargetLang('tl1-container');
+  // Hide this button after it's clicked
+  document.getElementById('add-first-target-button')?.classList.add('hide');
 }
 
-// Handler for add language button clicks
+// Handler for language dropdown changes
+function handleLanguageChange(event) {
+  const langSelect = event.target;
+  const selectedLangCode = langSelect.value;
+  const langSelectId = langSelect.id; // e.g., "sl", "tl1"
+
+  // Determine the corresponding voice select ID
+  const voiceSelectId = langSelectId + '-voice'; // e.g., "sl-voice", "tl1-voice"
+  const voiceSelect = document.getElementById(voiceSelectId);
+
+  if (voiceSelect && typeof updateVoiceDropdown === 'function') {
+    console.log(`Language changed for ${langSelectId} to ${selectedLangCode}. Updating ${voiceSelectId}.`);
+    updateVoiceDropdown(voiceSelect, selectedLangCode);
+  } else {
+    console.warn(`Could not find voice select '${voiceSelectId}' or updateVoiceDropdown function.`);
+  }
+}
+
+// Handler for add language button clicks (for TL2, TL3, TL4)
 function showTargetLangHandler(event) {
-    const targetContainerId = event.currentTarget.dataset.targetContainerId;
-    if (targetContainerId) {
-        showTargetLang(targetContainerId);
-    }
+  const targetContainerId = event.currentTarget.dataset.targetContainerId;
+  if (targetContainerId) {
+    showTargetLang(targetContainerId);
+  }
 }
 
 // Handler for remove language button clicks
 function hideTargetLangHandler(event) {
-    const targetContainerId = event.currentTarget.dataset.targetContainerId;
-    if (targetContainerId) {
-        hideTargetLang(targetContainerId);
-    }
+  const targetContainerId = event.currentTarget.dataset.targetContainerId;
+  if (targetContainerId) {
+    hideTargetLang(targetContainerId);
+  }
+}
+
+// Handler for slider changes
+function handleSliderChange(event) {
+  const slider = event.target;
+  const valueSpan = slider.parentElement.querySelector(slider.classList.contains('rate-slider') ? '.rate-value' : '.pitch-value');
+  if (valueSpan) {
+    let value = slider.value;
+    let prefix = value > 0 ? '+' : '';
+    let suffix = slider.classList.contains('rate-slider') ? '%' : 'Hz';
+    valueSpan.textContent = `${prefix}${value}${suffix}`;
+  }
 }
 
 
@@ -417,6 +464,11 @@ function showTargetLang(containerId) {
 
   container.classList.remove('hide');
 
+  // If showing TL1, hide the initial add button
+  if (containerId === 'tl1-container') {
+    document.getElementById('add-first-target-button')?.classList.add('hide');
+  }
+
   // Crucially, call updateUI *after* showing the container
   // so it can correctly create/replace the select element if needed.
   // updateUI will now handle updating the voice dropdown based on the selected language.
@@ -430,14 +482,14 @@ function showTargetLang(containerId) {
       const voiceSelectId = newLangSelectElement.id + '-voice';
       const voiceSelectElement = document.getElementById(voiceSelectId);
       if (voiceSelectElement && typeof updateVoiceDropdown === 'function') {
-          updateVoiceDropdown(voiceSelectElement, newLangSelectElement.value);
+        updateVoiceDropdown(voiceSelectElement, newLangSelectElement.value);
       }
     }
     // No need to call attachEventListeners here, as updateUI already does it.
   });
 }
 
-// Modified hideTargetLang to clear the voice dropdown
+// Modified hideTargetLang to clear the voice dropdown and manage button visibility
 function hideTargetLang(containerId) {
   const container = document.getElementById(containerId);
   if (!container) return; // Safety check
@@ -451,13 +503,19 @@ function hideTargetLang(containerId) {
   // Clear the corresponding voice dropdown
   const voiceSelectId = langSelectElement ? langSelectElement.id + '-voice' : null;
   if (voiceSelectId) {
-      const voiceSelectElement = document.getElementById(voiceSelectId);
-      if (voiceSelectElement && typeof updateVoiceDropdown === 'function') {
-          updateVoiceDropdown(voiceSelectElement, null); // Pass null to clear/show placeholder
-      }
+    const voiceSelectElement = document.getElementById(voiceSelectId);
+    if (voiceSelectElement && typeof updateVoiceDropdown === 'function') {
+      updateVoiceDropdown(voiceSelectElement, null); // Pass null to clear/show placeholder
+    }
   }
 
   container.classList.add('hide');
+
+  // If hiding TL1, re-show the initial add button
+  if (containerId === 'tl1-container') {
+    document.getElementById('add-first-target-button')?.classList.remove('hide');
+  }
+
   // No need to call updateUI here unless hiding affects other elements' layout significantly
   // Event listeners will be re-attached if another action calls updateUI later.
 }
@@ -520,21 +578,28 @@ function updateProgress(translated, total, startTime) {
   progressBar.textContent = percent + '%';
 
   const elapsedTime = Date.now() - startTime;
-  const estimatedTotalTime = total === 0 ? 0 : (elapsedTime * (total / translated));
+  const estimatedTotalTime = (translated === 0 || total === 0) ? 0 : (elapsedTime * (total / translated)); // Avoid division by zero
   const estimatedTimeRemaining = Math.max(0, estimatedTotalTime - elapsedTime); // Prevent negative time
 
   // Defensive check: Ensure translations[currentLanguage] exists before accessing properties
   const currentLangTranslations = translations[currentLanguage] || translations['en']; // Fallback to English if not loaded
   const translatedText = currentLangTranslations.translated;
   const etaText = currentLangTranslations.eta;
+  const calculatingText = currentLangTranslations.calculating || 'Calculating...'; // Add fallback
+
+  const etaString = (translated === 0 || total === 0 || !isFinite(estimatedTimeRemaining)) ? calculatingText : formatTime(estimatedTimeRemaining);
+
 
   progressInfo.innerHTML = `
           <span>${translatedText}: ${translated} / ${total}</span> |
-          <span>${etaText}: ${formatTime(estimatedTimeRemaining)}</span>
+          <span>${etaText}: ${etaString}</span>
       `;
 }
 
 function formatTime(milliseconds) {
+  if (!isFinite(milliseconds) || milliseconds < 0) {
+    return 'N/A'; // Or 'Calculating...' or similar
+  }
   let seconds = Math.floor(milliseconds / 1000);
   let minutes = Math.floor(seconds / 60);
   let hours = Math.floor(minutes / 60);
@@ -547,9 +612,12 @@ function formatTime(milliseconds) {
     timeString += `${hours}h `;
   }
   if (minutes > 0 || hours > 0) {
-    timeString += `${minutes}m `;
+    // Pad minutes with leading zero if hours are shown or if minutes > 0
+    timeString += `${(hours > 0 && minutes < 10) ? '0' : ''}${minutes}m `;
   }
-  timeString += `${seconds}s`;
+  // Pad seconds with leading zero if minutes or hours are shown
+  timeString += `${(minutes > 0 || hours > 0) && seconds < 10 ? '0' : ''}${seconds}s`;
+
 
   return timeString.trim();
 }
@@ -566,7 +634,7 @@ function openBookView() {
         font-family: Arial, sans-serif;
         line-height: 1.6; /* Improve readability */
       }
-  
+
       /* Theme styles (copied and adapted from styles.css) */
       body.bw {
         color: rgb(0, 0, 0);
@@ -582,8 +650,8 @@ function openBookView() {
       body:not(.bw) .paragraph {
           border-bottom-color: #e0cba8; /* Theme-appropriate border */
       }
-  
-  
+
+
       /* Paragraph container */
       .paragraph {
         display: flex;
@@ -593,7 +661,7 @@ function openBookView() {
         border-bottom: 1px solid #eee; /* Add a light separator line */
         padding-bottom: 1em;
       }
-  
+
       /* Base style for all columns */
       .source, .lang-column {
         /* Distribute space, allow shrinking, but base width is key */
@@ -611,13 +679,13 @@ function openBookView() {
         /* Optional: Add border for debugging column boundaries */
         /* border: 1px dotted gray; */
       }
-  
+
       /* Right-to-left text alignment */
       .rtl {
         text-align: right;
         direction: rtl; /* Ensure proper RTL rendering */
       }
-  
+
       /* Style for the horizontal rule if needed */
       hr {
         margin-top: 10px;
@@ -642,6 +710,7 @@ function openBookView() {
         <head>
           <meta charset="UTF-8">
           <meta name="viewport" content="width=device-width, initial-scale=1.0">
+          <title>Book View</title> <!-- Added Title -->
           <style>
             ${bookViewStyles}
           </style>
