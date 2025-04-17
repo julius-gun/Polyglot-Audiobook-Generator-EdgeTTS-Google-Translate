@@ -270,6 +270,24 @@ textarea {
   height: 200px;
   margin-bottom: 10px;
   /* Add margin below textarea */
+  padding: 10px; /* Added padding */
+  border: 1px solid #b5722a; /* Consistent border */
+  border-radius: 5px; /* Consistent radius */
+  background-color: #fff; /* Default background */
+  color: rgb(53, 39, 0); /* Default text color */
+  resize: vertical; /* Allow vertical resize */
+}
+
+.bw textarea { /* Style for textareas in BW theme */
+  background-color: #f5f5f5;
+  border-color: #ccc;
+  color: #000;
+}
+
+.bw #stat-area { /* Specific BW style for stat-area */
+  background-color: #eee;
+  border-color: #ccc;
+  color: #333;
 }
 
 #output {
@@ -343,7 +361,8 @@ a:hover {
 /* Button Styles */
 button,
 .add-lang-button,
-.remove-lang-button { /* Combined button styles */
+.remove-lang-button,
+.settings-button { /* Added .settings-button */
   padding: 10px 15px;
   border: none;
   border-radius: 5px;
@@ -359,9 +378,21 @@ button,
 
 button:hover,
 .add-lang-button:hover,
-.remove-lang-button:hover { /* Combined hover styles */
+.remove-lang-button:hover,
+.settings-button:hover { /* Added .settings-button hover */
   background-color: #945c1e;
 }
+
+/* Specific style for settings button */
+.settings-button {
+    padding: 5px 10px; /* Slightly smaller padding */
+    font-size: 1.2rem; /* Make icon slightly larger */
+    height: 30px; /* Smaller height */
+    width: 30px; /* Make it square-ish */
+    line-height: 20px; /* Adjust line height for vertical centering */
+    margin-right: 5px; /* Add some space between it and the label */
+}
+
 
 /* Specific adjustments for add/remove buttons */
 .add-lang-button,
@@ -372,6 +403,24 @@ button:hover,
   height: 30px; /* Smaller height for +/- buttons */
   /* Ensure vertical alignment */
   align-self: center;
+}
+
+/* Style for slider value displays */
+.rate-value,
+.pitch-value,
+.threads-value, /* Added */
+.merge-value { /* Added */
+  min-width: 40px; /* Prevent layout shifts */
+  text-align: right;
+  font-family: monospace; /* Consistent character width */
+  color: #333;
+}
+
+.bw .rate-value,
+.bw .pitch-value,
+.bw .threads-value, /* Added */
+.bw .merge-value { /* Added */
+    color: #000;
 }
 
 /* Specific style for the initial add button if needed */
@@ -413,6 +462,18 @@ button:hover,
   /* Slightly smaller progress info text */
   color: #555;
   /* Darker color for progress info text */
+}
+
+/* Specific styles for stat-area */
+#stat-area {
+  height: 150px; /* Specific height */
+  background-color: #f8f0e3; /* Slightly different background */
+  border: 1px solid #e0cba8; /* Lighter border */
+  color: #555; /* Dimmer text color */
+  font-family: monospace;
+  font-size: 0.9em;
+  margin-top: 10px;
+  /* The 'hide' class will control display */
 }
 
 

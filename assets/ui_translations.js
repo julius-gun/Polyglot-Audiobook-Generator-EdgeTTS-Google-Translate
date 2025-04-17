@@ -7,7 +7,7 @@ const translations = {
         targetLabel3: 'Target Language 3:',
         targetLabel4: 'Target Language 4:',
         enterText: 'Enter your source text here...',
-        generateButton: 'Translate',
+        generateButton: 'Generate',
         translated: 'Translated',
         eta: 'ETA',
         translationError: 'Translation Error',
