@@ -3,7 +3,7 @@
 
 <head>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.6.0/jszip.min.js"></script>
-  <title>Bilingual Book Generator</title>
+  <title>Polyglot Audiobook Generator</title> 
   <link rel="stylesheet" href="assets/styles.css">
   <script src="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/js/all.min.js"></script>
   <!-- Google tag (gtag.js) -->
@@ -33,6 +33,9 @@
   <script src="assets/epub_generator.js" defer></script>
   <!-- Add Text Converter -->
   <script src="assets/texts_converter.js" defer></script> <!-- ADDED -->
+  <!-- Add EdgeTTS specific JS -->
+  <script src="assets/processing_file.js" defer></script> <!-- ADDED -->
+  <script src="assets/socket_edge_tts.js" defer></script> <!-- ADDED -->
   <!-- UI Logic -->
   <script src="assets/ui.js" defer></script>
   <!-- Voice Dropdown Logic (depends on voices-data.js) -->
@@ -55,7 +58,7 @@
 
   <div class="del">
     <header>
-      <h1>Bilingual Book Generator</h1>
+      <h1>Polyglot Audiobook Generator</h1> <!-- Updated Title -->
       <div id="language-selector-container">
         <button class="settings-button" id="settings-button" title="Settings">⚙️</button>
         <label id="ui-language-label" for="ui-language-selector">
@@ -221,10 +224,10 @@
     <button id="reload-page-button" class="hide" style="margin-left: 5px;">Reload Page</button>
 
     <!-- Progress Bar -->
-    <div id="progress-container" style="margin-top: 20px;"> <!-- Added margin-top for spacing -->
+    <div id="progress-container" style="margin-top: 20px; display: none;"> <!-- Added margin-top, hidden initially -->
       <div id="progress-bar">0%</div>
     </div>
-    <div id="progress-info">
+    <div id="progress-info" style="display: none;"> <!-- Hidden initially -->
       <span>Translated: 0 / 0</span> | <!--This will be translated-->
       <span>ETA: Calculating...</span> <!--This will be translated-->
     </div>
@@ -235,7 +238,7 @@
     <!-- ADDED: Status Text Area (Initially Hidden) -->
     <textarea readonly="" class="text hide" id="stat-area" style="display: block; margin-top: 10px; height: 150px; background-color: #f0f0f0; border: 1px solid #ccc; color: #333; font-family: monospace; font-size: 0.9em;" placeholder="Voice generation status will appear here..."></textarea> <!-- Added hide class -->
   </div>
-  <div id="output"></div>
+  <div id="output"></div> <!-- Used for bilingual book output -->
 
 </body>
 
