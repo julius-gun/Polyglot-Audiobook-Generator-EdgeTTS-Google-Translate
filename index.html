@@ -36,13 +36,21 @@
   <!-- Add EdgeTTS specific JS -->
   <script src="assets/processing_file.js" defer></script> <!-- ADDED -->
   <script src="assets/socket_edge_tts.js" defer></script> <!-- ADDED -->
-  <!-- UI Logic -->
+  <!-- UI Helper Functions -->
+  <script src="assets/ui_helpers.js" defer></script> <!-- ADDED -->
+  <!-- Progress Bar Logic (depends on ui_helpers, ui_translations) -->
+  <script src="assets/progress_bar.js" defer></script> <!-- ADDED -->
+  <!-- Language Dropdown Creation (depends on data, config, api, ui_translations, main globals) -->
+  <script src="assets/language_dropdown.js" defer></script> <!-- ADDED -->
+  <!-- UI Logic (depends on language_dropdown, calls setLanguage) -->
   <script src="assets/ui.js" defer></script>
-  <!-- Voice Dropdown Logic (depends on voices-data.js) -->
+  <!-- Voice Dropdown Logic (depends on voices-data.js, language_data.js) -->
   <script src="assets/voice-dropdown-menu.js" defer></script> <!-- ADDED -->
-  <!-- Core Application Logic (depends on UI, utils, API) -->
+  <!-- Core Application Logic (depends on UI, utils, API, progress_bar) -->
   <script src="assets/app_logic.js" defer></script> <!-- ADDED -->
-  <!-- Initialization Logic (depends on many above, attaches handlers from app_logic) -->
+  <!-- Event Listeners (depends on ui_helpers, app_logic, ui, voice-dropdown, texts_converter, epub_generator etc.) -->
+  <script src="assets/event_listeners.js" defer></script> <!-- ADDED -->
+  <!-- Initialization Logic (depends on many above, calls ui.js, event_listeners.js) -->
   <script src="assets/initialization.js" defer></script> <!-- ADDED -->
   <!-- Main orchestration script last (currently minimal) -->
   <script src="assets/main.js" defer></script>
