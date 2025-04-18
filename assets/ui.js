@@ -335,14 +335,18 @@ async function createLanguageSelector() {
 }
 
 // Helper function to attach event listeners
-// Depends on: generateBilingualBook (global from main.js), toggleTheme, openBookView,
+// Depends on: handleGenerateButtonClick (global from main.js), toggleTheme, openBookView,
 // saveEpub (from epub_generator.js), reloadPage, showTargetLang, hideTargetLang,
 // updateVoiceDropdown (from voice-dropdown-menu.js), handleFileInsert (new),
 // toggleAdvancedSettings (new), handleSliderChange (modified)
 function attachEventListeners() {
   // --- Button Listeners ---
   const generateButton = document.getElementById('generate-button');
-  if (generateButton) generateButton.addEventListener('click', generateBilingualBook); // Will be modified later to decide which generation function to call
+  // MODIFIED: Call the new handler function
+  if (generateButton) {
+      generateButton.removeEventListener('click', handleGenerateButtonClick); // Prevent duplicates
+      generateButton.addEventListener('click', handleGenerateButtonClick);
+  }
 
   // Added: Insert File Button Listener
   const insertFileButton = document.getElementById('insert-file-button');

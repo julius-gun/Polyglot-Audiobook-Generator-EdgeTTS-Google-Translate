@@ -2,7 +2,7 @@
 
 // --- Global Variables ---
 let currentLanguage = 'en'; // Default language
-const uiTranslationsCache = {}; // Cache for UI translations (Note: fetchTranslation now uses cookies, this might be redundant)
+// const uiTranslationsCache = {}; // Cache for UI translations (Note: fetchTranslation now uses cookies, this might be redundant)
 // languageData is now in language_data.js
 // prioritizedLanguages is now in config.js
 // translations is now in ui_translations.js
@@ -76,24 +76,56 @@ document.addEventListener('DOMContentLoaded', async () => {
 
   // Attach event listeners after the initial UI is built
   // attachEventListeners is now defined in ui.js
-  attachEventListeners();
+  attachEventListeners(); // This will now attach handleGenerateButtonClick
 
   // --- Initialize Slider Values ---
   // Ensure sliders show their initial values correctly
-  document.querySelectorAll('.rate-slider, .pitch-slider').forEach(slider => {
+  document.querySelectorAll('.rate-slider, .pitch-slider, .max-threads, .mergefiles').forEach(slider => { // Added threads/merge
     handleSliderChange({ target: slider }); // Trigger update using the handler
   });
+
+  // Load advanced settings visibility state if saved
+  // loadSettings(); // Uncomment if loadSettings function is implemented in ui.js
 });
 
 
 // --- Core Application Logic ---
 
+// NEW: Handler function to decide which generation process to start
+async function handleGenerateButtonClick() {
+    console.log("Generate button clicked - deciding mode...");
+    const sourceText = document.getElementById('source-text').value;
+
+    if (!sourceText || sourceText.trim() === "") {
+        alert("Please enter some source text before generating."); // Or use a translated alert
+        return;
+    }
+
+    // Check if any target language containers are visible
+    const tl1Visible = !document.getElementById('tl1-container')?.classList.contains('hide');
+    const tl2Visible = !document.getElementById('tl2-container')?.classList.contains('hide');
+    const tl3Visible = !document.getElementById('tl3-container')?.classList.contains('hide');
+    const tl4Visible = !document.getElementById('tl4-container')?.classList.contains('hide');
+
+    if (tl1Visible || tl2Visible || tl3Visible || tl4Visible) {
+        console.log("Mode: Bilingual Generation");
+        // At least one target language is active, run bilingual generation
+        await generateBilingualBook();
+    } else {
+        console.log("Mode: Single Language Audiobook Generation");
+        // No target languages active, run single language audio generation
+        await generateSingleLanguageAudiobook();
+    }
+}
+
+
+// Existing function for bilingual generation
 // Depends on: detectLanguage (translation_api.js), splitIntoSentences (translation_utils.js),
 // mergeShortSentences (translation_utils.js), createTranslationBatches (translation_utils.js),
 // updateProgress (ui.js), translateBatch (translation_api.js), displayTranslatedBatch (ui.js),
 // sleep (translation_utils.js)
 async function generateBilingualBook() {
-  console.log("Generate button clicked"); // ADDED: Debug log
+  console.log("Starting Bilingual Generation Process");
   const sourceText = document.getElementById('source-text').value;
   let sourceLang = document.getElementById('sl').value;
   // Get selected voices
@@ -131,9 +163,14 @@ async function generateBilingualBook() {
 
 
   const bookContainer = document.getElementById('output');
-  bookContainer.innerHTML = '';
+  bookContainer.innerHTML = ''; // Clear previous bilingual output
 
-  // Show progress bar
+  // Clear status area from previous runs (audio or bilingual)
+  const statArea = document.getElementById('stat-area');
+  if (statArea) statArea.value = '';
+  statArea?.classList.add('hide'); // Hide status area for bilingual mode
+
+  // Show progress bar for translation
   document.getElementById('progress-container').style.display = 'block';
   document.getElementById('progress-info').style.display = 'block'; // Ensure progress info is visible
 
@@ -144,7 +181,7 @@ async function generateBilingualBook() {
   let translatedSentencesCount = 0;
   let startTime = Date.now();
 
-  // Initialize progress bar
+  // Initialize progress bar (using the translation progress function)
   updateProgress(0, totalSentences, startTime);
 
   // Translate batches concurrently
@@ -189,6 +226,48 @@ async function generateBilingualBook() {
   document.getElementById('reload-page-button').classList.remove('hide');
 
 }
+
+
+// NEW: Placeholder function for single language audiobook generation
+// This will be implemented in the next step, adapting logic from script.js
+async function generateSingleLanguageAudiobook() {
+    console.log("Starting Single Language Audiobook Generation Process...");
+    // TODO: Implement logic based on script.js
+    // 1. Get UI elements (text, voice, rate, pitch, threads, merge, statArea, progress elements)
+    // 2. Split text into sentences (use splitIntoSentences from translation_utils.js)
+    // 3. Initialize state (run_work, parts_book, counters, startTime, threads_info)
+    // 4. Show progress bar, stat area
+    // 5. Define updateAudioProgress function (similar to updateProgress in script.js)
+    // 6. Define function to manage SocketEdgeTTS creation (similar to add_edge_tts)
+    // 7. Define merging logic (similar to do_marge)
+    // 8. Define file saving logic (directory picker, saveFiles)
+    // 9. Start the process
+
+    // Example: Show status area and progress bar
+    const statArea = document.getElementById('stat-area');
+    const progressContainer = document.getElementById('progress-container');
+    const progressInfo = document.getElementById('progress-info'); // Use the same progress info div
+
+    if (statArea) {
+        statArea.value = "Initializing audio generation...\n";
+        statArea.classList.remove('hide');
+    }
+    if (progressContainer) progressContainer.style.display = 'block';
+    if (progressInfo) progressInfo.style.display = 'block'; // Show ETA/Progress area
+
+    // Clear bilingual output area
+    const bookContainer = document.getElementById('output');
+    if (bookContainer) bookContainer.innerHTML = '';
+
+    // Hide bilingual-specific buttons
+    document.getElementById('open-book-view-button')?.classList.add('hide');
+    document.getElementById('save-epub-button')?.classList.add('hide');
+    document.getElementById('translation-finished-message')?.classList.add('hide');
+    document.getElementById('reload-page-button')?.classList.add('hide'); // Keep reload? Maybe rename to "Cancel/Clear"?
+
+    alert("Single language audio generation is not yet fully implemented."); // Placeholder message
+}
+
 
 // --- Helper Functions (if any specific to main.js) ---
 // Moved handleSliderChange to ui.js as it's UI manipulation
