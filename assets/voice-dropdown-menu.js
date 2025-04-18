@@ -9,17 +9,39 @@ function filterVoices(allVoices, selectedLangCode) {
         return []; // No language selected, show no voices
     }
 
-    const filtered = allVoices.filter(voice => {
-        const voiceLangCountry = voice.value.split(',')[0].trim(); // e.g., "en-US"
-        const voiceBaseLang = voiceLangCountry.split('-')[0]; // e.g., "en"
+    const selectedBaseLang = selectedLangCode.split('-')[0]; // e.g., 'es' from 'es-419' or 'es' from 'es'
 
-        // Check if the selected code contains a country variant (e.g., "en-US")
+    // --- Special Handling for Regional Group Codes ---
+    if (selectedLangCode === 'es-419') {
+        // Match all Spanish voices EXCEPT es-ES and es-US
+        return allVoices.filter(voice => {
+            const voiceLangCountry = voice.value.split(',')[0].trim(); // e.g., "es-MX"
+            const voiceBaseLang = voiceLangCountry.split('-')[0]; // e.g., "es"
+            return voiceBaseLang === 'es' && voiceLangCountry !== 'es-ES' && voiceLangCountry !== 'es-US';
+        });
+    }
+    // Add other regional group codes here if needed (e.g., zh-Hant -> zh-HK, zh-TW)
+
+    // --- General Filtering Logic ---
+    const filtered = allVoices.filter(voice => {
+        const voiceLangCountry = voice.value.split(',')[0].trim(); // e.g., "en-US", "nb-NO"
+        const voiceBaseLang = voiceLangCountry.split('-')[0]; // e.g., "en", "nb"
+
+        // Check if the selected code contains a region/script (e.g., "en-US", "nb-NO")
         if (selectedLangCode.includes('-')) {
             // Exact match required (e.g., selected "en-US" matches only "en-US,...")
             return voiceLangCountry === selectedLangCode;
         } else {
-            // Base language match (e.g., selected "en" matches "en-US,...", "en-GB,...", "en-AU,...")
-            // Also handles cases where voice is just 'en' and selected is 'en'
+            // Base language match (e.g., selected "no" should match "nb-NO")
+            // (e.g., selected "es" should match "es-ES", "es-MX", etc.)
+
+            // Special case: Map selected 'no' to voice base 'nb'
+            if (selectedLangCode === 'no' && voiceBaseLang === 'nb') {
+                return true;
+            }
+
+            // General base language match: selected 'en' matches 'en-US', 'en-GB', etc.
+            // selected 'es' matches 'es-ES', 'es-MX', etc.
             return voiceBaseLang === selectedLangCode;
         }
     });
@@ -121,46 +143,55 @@ function updateVoiceDropdown(dropdownElement, selectedLanguageCode) {
         console.error("Target dropdown element not provided for voice update.");
         return;
     }
-    if (typeof voicesData === 'undefined') {
-        console.error("voicesData is not defined. Make sure voices-data.js is loaded.");
+    if (typeof voicesData === 'undefined' || !Array.isArray(voicesData)) { // Added check for array
+        console.error("voicesData is not defined or not an array. Make sure voices-data.js is loaded correctly.");
         dropdownElement.innerHTML = '<option disabled>Error: Voice data not loaded.</option>';
         return;
     }
 
     // 1. Filter voices based on the selected language
-    const filteredVoices = filterVoices(voicesData, selectedLanguageCode);
+    let filteredVoices = filterVoices(voicesData, selectedLanguageCode);
+    let showingFallbackVoices = false; // Flag to track if we are showing all voices
 
+    // 2. Check if filtering resulted in no voices for a specific language selection
+    //    If so, use all voices as a fallback.
+    if (filteredVoices.length === 0 && selectedLanguageCode && selectedLanguageCode !== 'auto') {
+        console.warn(`No specific voices found for ${selectedLanguageCode}. Showing all available voices as fallback.`);
+        filteredVoices = [...voicesData]; // Use a copy of all voices as fallback
+        showingFallbackVoices = true;
+    }
+
+    // 3. Group the voices (either filtered or all fallback voices)
     const multilingualVoices = filteredVoices
         .filter(voice => voice.value.includes('Multilingual'))
         .sort((a, b) => a.value.localeCompare(b.value)); // Sort multilingual voices alphabetically
 
-    // 2. Group ALL filtered voices (including multilingual ones) for the main list
-    const groupedFilteredVoices = groupVoicesByLanguage(filteredVoices);
+    // Group ALL voices in the current list (filtered or fallback)
+    const groupedVoices = groupVoicesByLanguage(filteredVoices);
 
-    // 3. Populate the dropdown
+    // 4. Populate the dropdown
     dropdownElement.innerHTML = ''; // Clear existing options
 
+    // Handle the case where even the fallback (all voices) is empty (i.e., voicesData is empty)
     if (filteredVoices.length === 0) {
         const option = document.createElement('option');
         // Provide a more informative message based on the selection
         if (!selectedLanguageCode) {
             option.textContent = `Select a language first`;
-        } else if (selectedLanguageCode === 'auto') {
-            // This case means voicesData is empty or filter logic failed unexpectedly
-            option.textContent = `No voices available`;
-            console.warn("No voices available even when 'auto' was selected.");
-        }
-        else {
-            option.textContent = `No voices found for ${selectedLanguageCode}`;
+        } else {
+            // This should only happen if voicesData itself is empty
+            option.textContent = `No voices available at all`;
         }
         option.disabled = true;
         dropdownElement.appendChild(option);
         return; // Stop here
     }
 
+    // 5. Add Multilingual Optgroup (if any)
     if (multilingualVoices.length > 0) {
         const multiOptgroup = document.createElement('optgroup');
-        multiOptgroup.label = "--- Multilingual ---";
+        // Add a hint if showing fallback voices
+        multiOptgroup.label = showingFallbackVoices ? "--- Multilingual (Fallback) ---" : "--- Multilingual ---";
         multilingualVoices.forEach(voice => {
             const option = document.createElement('option');
             option.value = voice.value;
@@ -171,18 +202,20 @@ function updateVoiceDropdown(dropdownElement, selectedLanguageCode) {
         dropdownElement.appendChild(multiOptgroup);
     }
 
-
-    // --- START: Add Regular Language Optgroups ---
-    // Iterate over grouped voices and create optgroups and options
-    const sortedLanguageCodes = Object.keys(groupedFilteredVoices).sort();
+    // 6. Add Regular Language Optgroups
+    const sortedLanguageCodes = Object.keys(groupedVoices).sort();
 
     sortedLanguageCodes.forEach(languageCode => {
-        const languageVoices = groupedFilteredVoices[languageCode];
+        // Skip multilingual voices here as they are already added
+        const languageVoices = groupedVoices[languageCode].filter(v => !v.value.includes('Multilingual'));
+
+        // Only add the optgroup if there are non-multilingual voices for this language
+        if (languageVoices.length > 0) {
         const optgroup = document.createElement('optgroup');
-        // Use language name from map or fallback to uppercase code
-        // Add a separator label based on whether a multilingual group was added
-        const separator = multilingualVoices.length > 0 ? "--- " : "";
-        optgroup.label = `${separator}${languageNames[languageCode] || languageCode.toUpperCase()}`;
+            // Add a hint if showing fallback voices and this isn't the multilingual group
+            const separator = (multilingualVoices.length > 0 || showingFallbackVoices) ? "--- " : "";
+            const fallbackHint = showingFallbackVoices ? " (Fallback)" : "";
+            optgroup.label = `${separator}${languageNames[languageCode] || languageCode.toUpperCase()}${fallbackHint}`;
         dropdownElement.appendChild(optgroup);
 
         // Voices within the group are already sorted by groupVoicesByLanguage
@@ -193,12 +226,18 @@ function updateVoiceDropdown(dropdownElement, selectedLanguageCode) {
             option.textContent = displayText;
             optgroup.appendChild(option);
         });
+        }
     });
 
-    // Optional: Automatically select the first voice if available?
+    // 7. Select first option
     if (dropdownElement.options.length > 0) {
-        // Maybe select the first *non-multilingual* option by default? Or just the very first?
-        dropdownElement.selectedIndex = 0; // Selects the first overall (could be multilingual)
+        // Select the first non-disabled option
+        for (let i = 0; i < dropdownElement.options.length; i++) {
+            if (!dropdownElement.options[i].disabled) {
+                dropdownElement.selectedIndex = i;
+                break;
+            }
+        }
     }
 }
 
