@@ -31,11 +31,7 @@
   <script src="assets/translation_utils.js" defer></script>
   <script src="assets/translation_api.js" defer></script>
   <script src="assets/epub_generator.js" defer></script>
-  <!-- Add Text Converter -->
-  <script src="assets/texts_converter.js" defer></script> <!-- ADDED -->
-  <!-- Add EdgeTTS specific JS -->
-  <script src="assets/processing_file.js" defer></script> <!-- ADDED -->
-  <script src="assets/socket_edge_tts.js" defer></script> <!-- ADDED -->
+  <script src="assets/texts_converter.js" defer></script>
   <!-- UI Helper Functions -->
   <script src="assets/ui_helpers.js" defer></script> <!-- ADDED -->
   <!-- Progress Bar Logic (depends on ui_helpers, ui_translations) -->
@@ -44,15 +40,24 @@
   <script src="assets/language_dropdown.js" defer></script> <!-- ADDED -->
   <!-- UI Logic (depends on language_dropdown, calls setLanguage) -->
   <script src="assets/ui.js" defer></script>
-  <!-- Voice Dropdown Logic (depends on voices-data.js, language_data.js) -->
-  <script src="assets/voice-dropdown-menu.js" defer></script> <!-- ADDED -->
-  <!-- Core Application Logic (depends on UI, utils, API, progress_bar) -->
-  <script src="assets/app_logic.js" defer></script> <!-- ADDED -->
-  <!-- Event Listeners (depends on ui_helpers, app_logic, ui, voice-dropdown, texts_converter, epub_generator etc.) -->
-  <script src="assets/event_listeners.js" defer></script> <!-- ADDED -->
-  <!-- Initialization Logic (depends on many above, calls ui.js, event_listeners.js) -->
-  <script src="assets/initialization.js" defer></script> <!-- ADDED -->
-  <!-- Main orchestration script last (currently minimal) -->
+  <!-- Voice Dropdown Logic -->
+  <script src="assets/voice-dropdown-menu.js" defer></script>
+  <!-- EdgeTTS specific JS -->
+  <script src="assets/processing_file.js" defer></script>
+  <script src="assets/socket_edge_tts.js" defer></script>
+  <!-- Single Language Audio Logic -->
+  <script src="assets/audio_single_language.js" defer></script> <!-- ADDED HERE -->
+  <!-- Multi-Language Audio Logic -->
+  <script src="assets/audio_multi_language.js" defer></script> <!-- ADDED HERE -->
+  <!-- Bilingual Views Logic -->
+  <script src="assets/bilingual_view_generator.js" defer></script> <!-- ADDED HERE -->
+  <!-- Core Application Logic (decides which generation to run) -->
+  <script src="assets/app_logic.js" defer></script>
+  <!-- Event Listeners -->
+  <script src="assets/event_listeners.js" defer></script>
+  <!-- Initialization Logic -->
+  <script src="assets/initialization.js" defer></script>
+  <!-- Main orchestration script last -->
   <script src="assets/main.js" defer></script>
 
   <!-- Removed old script tags for languages.js and translations.js -->
