@@ -40,7 +40,11 @@
   <script src="assets/ui.js" defer></script>
   <!-- Voice Dropdown Logic (depends on voices-data.js) -->
   <script src="assets/voice-dropdown-menu.js" defer></script> <!-- ADDED -->
-  <!-- Main orchestration script last -->
+  <!-- Core Application Logic (depends on UI, utils, API) -->
+  <script src="assets/app_logic.js" defer></script> <!-- ADDED -->
+  <!-- Initialization Logic (depends on many above, attaches handlers from app_logic) -->
+  <script src="assets/initialization.js" defer></script> <!-- ADDED -->
+  <!-- Main orchestration script last (currently minimal) -->
   <script src="assets/main.js" defer></script>
 
   <!-- Removed old script tags for languages.js and translations.js -->
