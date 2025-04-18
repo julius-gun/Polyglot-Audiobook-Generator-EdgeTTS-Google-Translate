@@ -24,25 +24,36 @@ function createLanguageOptionElement(langInfo) {
     const isSourceLanguage = id === 'sl';
     const isTargetLanguage1 = id === 'tl1'; // Added check for TL1
   
+    // Create a lookup map for faster access
+    const languageDataMap = new Map(languageData.map(lang => [lang.Code, lang]));
+    const prioritizedCodesSet = new Set(prioritizedLanguages);
   
     // Separate prioritized and other languages from languageData
     const prioritizedOptions = [];
     const otherOptions = [];
   
-    // Sort languageData by Code for the main list
+    // 1. Process prioritized languages IN ORDER
+    // prioritizedLanguages is global from config.js
+    for (const prioCode of prioritizedLanguages) {
+        const langInfo = languageDataMap.get(prioCode);
+        if (langInfo) {
+            const optionElement = createLanguageOptionElement(langInfo);
+            prioritizedOptions.push(optionElement);
+        }
+    }
+
+    // 2. Process other languages, sorted alphabetically, excluding prioritized ones
   // languageData is global from language_data.js
     const sortedLanguageData = [...languageData].sort((a, b) => a.Code.localeCompare(b.Code));
-  
-    sortedLanguageData.forEach(langInfo => {
+    for (const langInfo of sortedLanguageData) {
+        if (!prioritizedCodesSet.has(langInfo.Code)) {
       const optionElement = createLanguageOptionElement(langInfo);
-    // prioritizedLanguages is global from config.js
-      if (prioritizedLanguages.includes(langInfo.Code)) {
-        prioritizedOptions.push(optionElement);
+            otherOptions.push(optionElement);
       }
-      otherOptions.push(optionElement.cloneNode(true)); // Clone for the 'all' list
-    });
+    }
   
-    // Create optgroup for prioritized languages
+
+    // Create optgroup for prioritized languages (using the ordered list)
     if (prioritizedOptions.length > 0) {
       const prioritizedGroup = document.createElement('optgroup');
     // fetchTranslation is from translation_api.js, translations is global from ui_translations.js, currentLanguage is global from main.js
@@ -51,7 +62,7 @@ function createLanguageOptionElement(langInfo) {
       select.appendChild(prioritizedGroup);
     }
   
-    // Create optgroup for all other languages (sorted by code)
+    // Create optgroup for all other languages (using the sorted, non-prioritized list)
     const othersGroup = document.createElement('optgroup');
     othersGroup.label = await fetchTranslation(translations['en'].allLanguagesLabel, currentLanguage);
     otherOptions.forEach(option => othersGroup.appendChild(option));
@@ -115,23 +126,34 @@ async function createLanguageSelector() {
   select.id = 'ui-language-selector';
   select.classList.add('ui-language-select'); // Add class for styling
 
-  // Separate prioritized and other languages from languageData
+    // Create a lookup map for faster access
+    const languageDataMap = new Map(languageData.map(lang => [lang.Code, lang]));
+    const prioritizedCodesSet = new Set(prioritizedLanguages);
+
   const prioritizedOptions = [];
   const otherOptions = [];
 
-  // Sort languageData by Code for the main list
-  const sortedLanguageData = [...languageData].sort((a, b) => a.Code.localeCompare(b.Code));
-
-  sortedLanguageData.forEach(langInfo => {
-    // Use the helper function to create the option element
+    // 1. Process prioritized languages IN ORDER
+    // prioritizedLanguages is global from config.js
+    for (const prioCode of prioritizedLanguages) {
+        const langInfo = languageDataMap.get(prioCode);
+        if (langInfo) {
     const optionElement = createLanguageOptionElement(langInfo);
-    if (prioritizedLanguages.includes(langInfo.Code)) {
       prioritizedOptions.push(optionElement);
     }
-    otherOptions.push(optionElement.cloneNode(true)); // Clone for the 'all' list
-  });
+    }
 
-  // Create optgroup for prioritized languages
+    // 2. Process other languages, sorted alphabetically, excluding prioritized ones
+    // languageData is global from language_data.js
+    const sortedLanguageData = [...languageData].sort((a, b) => a.Code.localeCompare(b.Code));
+    for (const langInfo of sortedLanguageData) {
+        if (!prioritizedCodesSet.has(langInfo.Code)) {
+            const optionElement = createLanguageOptionElement(langInfo);
+            otherOptions.push(optionElement);
+        }
+    }
+
+    // Create optgroup for prioritized languages (using the ordered list)
   if (prioritizedOptions.length > 0) {
     const prioritizedGroup = document.createElement('optgroup');
     prioritizedGroup.label = await fetchTranslation(translations['en'].prioritizedLabel, currentLanguage);
@@ -139,7 +161,7 @@ async function createLanguageSelector() {
     select.appendChild(prioritizedGroup);
   }
 
-  // Create optgroup for all other languages (sorted by code)
+    // Create optgroup for all other languages (using the sorted, non-prioritized list)
   const othersGroup = document.createElement('optgroup');
   othersGroup.label = await fetchTranslation(translations['en'].allLanguagesLabel, currentLanguage);
   otherOptions.forEach(option => othersGroup.appendChild(option));
