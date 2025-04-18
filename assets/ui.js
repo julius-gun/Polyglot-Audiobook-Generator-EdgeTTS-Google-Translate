@@ -337,18 +337,25 @@ async function createLanguageSelector() {
 // Helper function to attach event listeners
 // Depends on: generateBilingualBook (global from main.js), toggleTheme, openBookView,
 // saveEpub (from epub_generator.js), reloadPage, showTargetLang, hideTargetLang,
-// updateVoiceDropdown (from voice-dropdown-menu.js), handleFileInsert (new)
+// updateVoiceDropdown (from voice-dropdown-menu.js), handleFileInsert (new),
+// toggleAdvancedSettings (new), handleSliderChange (modified)
 function attachEventListeners() {
   // --- Button Listeners ---
   const generateButton = document.getElementById('generate-button');
-  if (generateButton) generateButton.addEventListener('click', generateBilingualBook);
+  if (generateButton) generateButton.addEventListener('click', generateBilingualBook); // Will be modified later to decide which generation function to call
 
   // Added: Insert File Button Listener
   const insertFileButton = document.getElementById('insert-file-button');
   if (insertFileButton) {
-    insertFileButton.addEventListener('click', () => {
-      document.getElementById('file-input')?.click(); // Trigger hidden file input
-    });
+    insertFileButton.removeEventListener('click', handleInsertFileClick); // Prevent duplicates
+    insertFileButton.addEventListener('click', handleInsertFileClick);
+  }
+
+  // Added: Settings Button Listener
+  const settingsButton = document.getElementById('settings-button');
+  if (settingsButton) {
+    settingsButton.removeEventListener('click', toggleAdvancedSettings); // Prevent duplicates
+    settingsButton.addEventListener('click', toggleAdvancedSettings);
   }
 
   const openBookViewButton = document.getElementById('open-book-view-button');
@@ -396,11 +403,15 @@ function attachEventListeners() {
     select.addEventListener('change', handleLanguageChange);
   });
 
-  // --- Slider Change Listeners ---
-  const sliders = document.querySelectorAll('.rate-slider, .pitch-slider');
+  // --- Slider Change Listeners (Rate, Pitch, Threads, Merge) ---
+  const sliders = document.querySelectorAll('.rate-slider, .pitch-slider, .max-threads, .mergefiles'); // Added .max-threads, .mergefiles
   sliders.forEach(slider => {
     slider.removeEventListener('input', handleSliderChange); // Prevent duplicates
     slider.addEventListener('input', handleSliderChange);
+    // Trigger initial update for threads/merge sliders if they exist
+    if (slider.classList.contains('max-threads') || slider.classList.contains('mergefiles')) {
+        handleSliderChange({ target: slider });
+    }
   });
 
   const fileInput = document.getElementById('file-input');
@@ -413,6 +424,24 @@ function attachEventListeners() {
 }
 
 // --- Event Handlers ---
+// Added: Simple handler to trigger file input click
+function handleInsertFileClick() {
+  document.getElementById('file-input')?.click();
+}
+
+// Added: Handler to toggle advanced audio settings visibility
+function toggleAdvancedSettings() {
+  const settingsContainer = document.getElementById('advanced-audio-settings');
+  if (settingsContainer) {
+      settingsContainer.classList.toggle('hide');
+  }
+  // Optionally, save the visibility state to localStorage if needed
+  // try {
+  //     localStorage.setItem('advancedSettingsVisible', !settingsContainer.classList.contains('hide'));
+  // } catch (e) {
+  //     console.warn("Could not save advanced settings visibility state:", e);
+  // }
+}
 
 // Added: Handler for file input changes
 // Depends on: insertTextIntoSourceArea, convertFb2ToTxt, convertEpubToTxt, convertZipToTxt (from texts_converter.js)
@@ -569,15 +598,30 @@ function hideTargetLangHandler(event) {
 // Handler for slider changes
 function handleSliderChange(event) {
   const slider = event.target;
-  const valueSpan = slider.parentElement.querySelector(slider.classList.contains('rate-slider') ? '.rate-value' : '.pitch-value');
+  const value = slider.value;
+  let valueSpan;
+  let textContent;
+
+  if (slider.classList.contains('rate-slider')) {
+    valueSpan = slider.parentElement.querySelector('.rate-value');
+    const prefix = value > 0 ? '+' : '';
+    textContent = `${prefix}${value}%`;
+  } else if (slider.classList.contains('pitch-slider')) {
+    valueSpan = slider.parentElement.querySelector('.pitch-value');
+    const prefix = value > 0 ? '+' : '';
+    textContent = `${prefix}${value}Hz`;
+  } else if (slider.classList.contains('max-threads')) {
+    valueSpan = slider.parentElement.querySelector('.threads-value'); // Corrected selector
+    textContent = `${value}`; // Display integer value
+  } else if (slider.classList.contains('mergefiles')) {
+    valueSpan = slider.parentElement.querySelector('.merge-value'); // Corrected selector
+    textContent = value == 100 ? "ALL" : `${value} pcs.`; // Display "ALL" or number
+  }
+
   if (valueSpan) {
-    let value = slider.value;
-    let prefix = value > 0 ? '+' : '';
-    let suffix = slider.classList.contains('rate-slider') ? '%' : 'Hz';
-    valueSpan.textContent = `${prefix}${value}${suffix}`;
+    valueSpan.textContent = textContent;
   }
 }
-
 
 // Depends on: updateUI, attachEventListeners
 // Modified showTargetLang to ensure voice dropdown is updated correctly

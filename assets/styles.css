@@ -183,7 +183,9 @@ flex-basis: 60px; /* Estimate for buttons + gap */
 
 
 .rate-slider,
-.pitch-slider {
+.pitch-slider,
+.max-threads, /* Added */
+.mergefiles { /* Added */
   flex-grow: 1; /* Allow slider to take available space */
   height: 10px; /* Adjust slider height */
   cursor: pointer;
@@ -195,13 +197,17 @@ flex-basis: 60px; /* Estimate for buttons + gap */
   outline: none;
 }
 .bw .rate-slider,
-.bw .pitch-slider {
+.bw .pitch-slider,
+.bw .max-threads, /* Added */
+.bw .mergefiles { /* Added */
     background: #ccc;
 }
 
 /* Slider Thumb */
 .rate-slider::-webkit-slider-thumb,
-.pitch-slider::-webkit-slider-thumb {
+.pitch-slider::-webkit-slider-thumb,
+.max-threads::-webkit-slider-thumb, /* Added */
+.mergefiles::-webkit-slider-thumb { /* Added */
   -webkit-appearance: none;
   appearance: none;
   width: 16px;
@@ -211,12 +217,16 @@ flex-basis: 60px; /* Estimate for buttons + gap */
   cursor: pointer;
 }
 .bw .rate-slider::-webkit-slider-thumb,
-.bw .pitch-slider::-webkit-slider-thumb {
+.bw .pitch-slider::-webkit-slider-thumb,
+.bw .max-threads::-webkit-slider-thumb, /* Added */
+.bw .mergefiles::-webkit-slider-thumb { /* Added */
     background: #555;
 }
 
 .rate-slider::-moz-range-thumb,
-.pitch-slider::-moz-range-thumb {
+.pitch-slider::-moz-range-thumb,
+.max-threads::-moz-range-thumb, /* Added */
+.mergefiles::-moz-range-thumb { /* Added */
   width: 16px;
   height: 16px;
   background: #b5722a;
@@ -225,7 +235,9 @@ flex-basis: 60px; /* Estimate for buttons + gap */
   border: none; /* Remove default border in Firefox */
 }
 .bw .rate-slider::-moz-range-thumb,
-.bw .pitch-slider::-moz-range-thumb {
+.bw .pitch-slider::-moz-range-thumb,
+.bw .max-threads::-moz-range-thumb, /* Added */
+.bw .mergefiles::-moz-range-thumb { /* Added */
     background: #555;
 }
 
@@ -474,6 +486,14 @@ button:hover,
   font-size: 0.9em;
   margin-top: 10px;
   /* The 'hide' class will control display */
+  /* Ensure it's not hidden by default if needed for audio generation status */
+  /* display: none; /* Remove this if it should be potentially visible */
+}
+
+.bw #stat-area { /* Specific BW style for stat-area */
+  background-color: #eee;
+  border-color: #ccc;
+  color: #333;
 }
 
 
