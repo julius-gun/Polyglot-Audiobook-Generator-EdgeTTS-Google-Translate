@@ -11,14 +11,11 @@ function setLanguage(lang) {
   } catch (e) {
     console.warn("Could not save UI language preference to localStorage:", e);
   }
-  updateUI();
+  updateUI(); // Trigger the update process
 }
 
-// Depends on: fetchTranslation (from translation_api.js), translations (global from ui_translations.js),
-// createLanguageDropdown, createLanguageSelector (from language_dropdown.js),
-// attachEventListeners (from event_listeners.js), currentLanguage (global from main.js),
-// updateVoiceDropdown (from voice-dropdown-menu.js)
-async function updateUI() {
+//Function to translate static UI elements
+async function translateUIElements() {
   const uiElements = {
     pageTitle: document.querySelector('h1'),
     sourceLabel: document.querySelector('#sl-container label'),
@@ -27,16 +24,16 @@ async function updateUI() {
     targetLabel3: document.querySelector('#tl3-container label'),
     targetLabel4: document.querySelector('#tl4-container label'),
     enterText: document.querySelector('#source-text'),
-    generateButton: document.querySelector('#generate-button'), // Corrected selector ID
-    insertFileButton: document.getElementById('insert-file-button'), // Added button
-    translatedSpan: document.querySelector('#progress-info span:first-child'),
-    etaSpan: document.querySelector('#progress-info span:last-child'),
+    generateButton: document.querySelector('#generate-button'),
+    insertFileButton: document.getElementById('insert-file-button'),
+    translatedSpan: document.querySelector('#progress-info span:first-child'), // Might be null initially
+    etaSpan: document.querySelector('#progress-info span:last-child'), // Might be null initially
     uiLanguageLabel: document.querySelector('#ui-language-label span:last-child'),
     openBookViewButton: document.querySelector('#open-book-view-button'),
     saveEpubButton: document.querySelector('#save-epub-button'),
     reloadPageButton: document.querySelector('#reload-page-button'),
     translationFinishedMessage: document.querySelector('#translation-finished-message'),
-    enterSourceTextLabel: document.querySelector('h3'), // New label
+    enterSourceTextLabel: document.querySelector('h3'),
     headerLanguageLabel: document.querySelector('#header-language-label'),
     headerVoiceLabel: document.querySelector('#header-voice-label'),
   };
@@ -48,6 +45,7 @@ async function updateUI() {
       if (element) {
         const englishText = translations['en'][key];
         // Fetch translation for the UI element text itself
+        // Depends on: fetchTranslation (translation_api.js), currentLanguage (global), translations (global)
         const translatedText = await fetchTranslation(englishText, currentLanguage);
 
         if (key === 'enterText') {
@@ -55,7 +53,7 @@ async function updateUI() {
         } else if (key === 'translatedSpan') {
           // Special handling for progress info - needs translated "Translated" word
           const translatedWord = await fetchTranslation(translations['en'].translated, currentLanguage);
-          const currentProgressText = element.textContent; // Get current numbers
+          const currentProgressText = element.textContent || ''; // Get current numbers, default to empty string
           const numbersMatch = currentProgressText.match(/(\d+)\s*\/\s*(\d+)/);
           const currentTranslated = numbersMatch ? numbersMatch[1] : '0';
           const currentTotal = numbersMatch ? numbersMatch[2] : '0';
@@ -63,9 +61,9 @@ async function updateUI() {
         } else if (key === 'etaSpan') {
           // Special handling for progress info - needs translated "ETA" word
           const translatedWord = await fetchTranslation(translations['en'].eta, currentLanguage);
-          const currentEtaText = element.textContent; // Get current time
+          const currentEtaText = element.textContent || ''; // Get current time, default to empty string
           const timeMatch = currentEtaText.split(': ')[1]; // Get the part after ": "
-          const currentTime = timeMatch ? timeMatch : 'Calculating...';
+          const currentTime = timeMatch ? timeMatch : (await fetchTranslation(translations['en'].calculating || 'Calculating...', currentLanguage)); // Translate "Calculating..."
           element.textContent = `${translatedWord}: ${currentTime}`;
         } else if (key === 'uiLanguageLabel') {
           const translatedWord = await fetchTranslation(translations['en'].uiLanguage, currentLanguage);
@@ -77,9 +75,14 @@ async function updateUI() {
       }
     }
   }
+}
 
-  // --- Re-render language dropdowns using the new functions ---
-  // createLanguageDropdown and createLanguageSelector are now in language_dropdown.js
+// NEW: Function to rebuild language and voice dropdowns
+async function rebuildLanguageDropdowns() {
+  // Depends on: createLanguageDropdown, createLanguageSelector (language_dropdown.js)
+  // Depends on: updateVoiceDropdown (voice-dropdown-menu.js)
+  // Depends on: currentLanguage (global)
+
   const slContainer = document.getElementById('sl-container');
   const tl1Container = document.getElementById('tl1-container');
   const tl2Container = document.getElementById('tl2-container');
@@ -93,20 +96,23 @@ async function updateUI() {
   const currentTl2Value = tl2Container.querySelector('select#tl2')?.value;
   const currentTl3Value = tl3Container.querySelector('select#tl3')?.value;
   const currentTl4Value = tl4Container.querySelector('select#tl4')?.value;
-  const currentUiLangValue = uiLangContainer.querySelector('select#ui-language-selector')?.value;
 
   // Replace existing selects or create if they don't exist
-  const newSlSelect = await createLanguageDropdown('sl');
-  const oldSlSelect = slContainer.querySelector('select#sl');
-  if (oldSlSelect) oldSlSelect.replaceWith(newSlSelect); else slContainer.insertBefore(newSlSelect, slContainer.querySelector('#sl-voice'));
-  if (currentSlValue) newSlSelect.value = currentSlValue;
-  // Update SL voice dropdown based on the (potentially restored) SL language value
-  const slVoiceSelect = document.getElementById('sl-voice');
-  if (slVoiceSelect && typeof updateVoiceDropdown === 'function') {
-    updateVoiceDropdown(slVoiceSelect, newSlSelect.value);
+
+  if (slContainer) {
+    const newSlSelect = await createLanguageDropdown('sl');
+    const oldSlSelect = slContainer.querySelector('select#sl');
+    if (oldSlSelect) oldSlSelect.replaceWith(newSlSelect); else slContainer.insertBefore(newSlSelect, slContainer.querySelector('#sl-voice'));
+    if (currentSlValue) newSlSelect.value = currentSlValue;
+    // Update SL voice dropdown based on the (potentially restored) SL language value
+    const slVoiceSelect = document.getElementById('sl-voice');
+    if (slVoiceSelect && typeof updateVoiceDropdown === 'function') {
+      updateVoiceDropdown(slVoiceSelect, newSlSelect.value);
+    }
   }
 
-  // --- Target Language 1 (even if hidden) ---
+  // --- Target Language 1 ---
+  if (tl1Container) {
   const newTl1Select = await createLanguageDropdown('tl1');
   const oldTl1Select = tl1Container.querySelector('select#tl1');
   if (oldTl1Select) oldTl1Select.replaceWith(newTl1Select); else tl1Container.insertBefore(newTl1Select, tl1Container.querySelector('#tl1-voice'));
@@ -119,9 +125,13 @@ async function updateUI() {
   const tl1VoiceSelect = document.getElementById('tl1-voice');
   if (tl1VoiceSelect && typeof updateVoiceDropdown === 'function') {
     updateVoiceDropdown(tl1VoiceSelect, newTl1Select.value);
+    }
   }
 
-  // --- Target Language 2 (if visible) ---
+  // --- Target Language 2 ---
+  if (tl2Container) {
+    // Only rebuild if visible, but always ensure voice dropdown is correct
+    const tl2VoiceSelect = document.getElementById('tl2-voice');
   if (!tl2Container.classList.contains('hide')) {
     const newTl2Select = await createLanguageDropdown('tl2');
     const oldTl2Select = tl2Container.querySelector('select#tl2');
@@ -137,10 +147,13 @@ async function updateUI() {
     const tl2VoiceSelect = document.getElementById('tl2-voice');
     if (tl2VoiceSelect && typeof updateVoiceDropdown === 'function') {
       updateVoiceDropdown(tl2VoiceSelect, null); // Pass null to clear
+      }
     }
   }
 
-  // --- Target Language 3 (if visible) ---
+  // --- Target Language 3 ---
+  if (tl3Container) {
+    const tl3VoiceSelect = document.getElementById('tl3-voice');
   if (!tl3Container.classList.contains('hide')) {
     const newTl3Select = await createLanguageDropdown('tl3');
     const oldTl3Select = tl3Container.querySelector('select#tl3');
@@ -155,10 +168,13 @@ async function updateUI() {
     const tl3VoiceSelect = document.getElementById('tl3-voice');
     if (tl3VoiceSelect && typeof updateVoiceDropdown === 'function') {
       updateVoiceDropdown(tl3VoiceSelect, null);
+      }
     }
   }
 
-  // --- Target Language 4 (if visible) ---
+  // --- Target Language 4 ---
+  if (tl4Container) {
+    const tl4VoiceSelect = document.getElementById('tl4-voice');
   if (!tl4Container.classList.contains('hide')) {
     const newTl4Select = await createLanguageDropdown('tl4');
     const oldTl4Select = tl4Container.querySelector('select#tl4');
@@ -173,27 +189,39 @@ async function updateUI() {
     const tl4VoiceSelect = document.getElementById('tl4-voice');
     if (tl4VoiceSelect && typeof updateVoiceDropdown === 'function') {
       updateVoiceDropdown(tl4VoiceSelect, null);
+      }
     }
   }
 
   // --- Update UI language selector ---
+  if (uiLangContainer) {
   const newUiLangSelect = await createLanguageSelector();
   const oldUiLangSelect = uiLangContainer.querySelector('select#ui-language-selector');
   if (oldUiLangSelect) oldUiLangSelect.replaceWith(newUiLangSelect); else uiLangContainer.appendChild(newUiLangSelect);
   // Set the value *after* replacing/appending
   newUiLangSelect.value = currentLanguage; // Ensure the current UI language is selected
+  }
+}
 
 
-  // Re-attach event listeners (important after replacing elements)
-  // attachEventListeners is now in event_listeners.js
+// Main UI update function - orchestrates translation and dropdown rebuilding
+// Depends on: translateUIElements, rebuildLanguageDropdowns (defined above)
+// Depends on: attachEventListeners (event_listeners.js)
+async function updateUI() {
+  // 1. Translate static text elements
+  await translateUIElements();
+
+  // 2. Rebuild language/voice dropdowns and restore selections
+  await rebuildLanguageDropdowns();
+
+  // 3. Re-attach event listeners (important after replacing elements)
+  // Depends on: attachEventListeners (event_listeners.js)
   attachEventListeners(); // Encapsulate listener attachment
 }
 
 
-
-
-// Depends on: updateUI, attachEventListeners (from event_listeners.js)
-// Modified showTargetLang to ensure voice dropdown is updated correctly
+// Shows a target language container and updates UI
+// Depends on: updateUI (defined above)
 function showTargetLang(containerId) {
   const container = document.getElementById(containerId);
   if (!container) return; // Safety check
@@ -229,7 +257,8 @@ function showTargetLang(containerId) {
   });
 }
 
-// Modified hideTargetLang to clear the voice dropdown and manage button visibility
+// Hides a target language container and clears associated dropdowns
+// Depends on: updateVoiceDropdown (voice-dropdown-menu.js)
 function hideTargetLang(containerId) {
   const container = document.getElementById(containerId);
   if (!container) return; // Safety check
@@ -241,7 +270,7 @@ function hideTargetLang(containerId) {
   }
 
   // Clear the corresponding voice dropdown
-  // updateVoiceDropdown is in voice-dropdown-menu.js
+  // Depends on: updateVoiceDropdown (voice-dropdown-menu.js)
   const voiceSelectId = langSelectElement ? langSelectElement.id + '-voice' : null;
   if (voiceSelectId) {
     const voiceSelectElement = document.getElementById(voiceSelectId);
@@ -261,6 +290,7 @@ function hideTargetLang(containerId) {
   // Event listeners will be re-attached if another action calls updateUI later.
 }
 
+// Displays a batch of translated sentences in the output area
 // Depends on: translations (global from ui_translations.js), currentLanguage (global from main.js)
 function displayTranslatedBatch(batch, translationsData, sourceLang, targetLangs) { // Renamed 'translations' param
   const bookContainer = document.getElementById('output');
@@ -292,6 +322,7 @@ function displayTranslatedBatch(batch, translationsData, sourceLang, targetLangs
         // translations object is defined in ui_translations.js, currentLanguage is global here
         const errorMsg = translations[currentLanguage]?.translationError || translations['en'].translationError; //Fallback to english if currentLanguage is not loaded yet.
         targetPara.textContent = errorMsg;
+        console.warn(`Missing translation for sentence index ${i} in target language ${targetLang}`);
       }
 
 
