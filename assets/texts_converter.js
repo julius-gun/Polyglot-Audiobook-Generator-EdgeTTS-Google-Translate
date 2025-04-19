@@ -1,4 +1,118 @@
-﻿// Helper function to insert text into the main source text area
+﻿  // Handler for file input changes
+  // Depends on: insertTextIntoSourceArea, convertFb2ToTxt, convertEpubToTxt, convertZipToTxt (from texts_converter.js)
+  async function handleFileInsert(event) { // Made async to handle await for EPUB/ZIP
+    const files = event.target.files;
+    if (!files || files.length === 0) {
+      return; // No file selected
+    }
+  
+      // Clear the text area before inserting content from new file(s)
+      // Exception: ZIP files handle clearing internally to allow appending multiple files within the zip.
+    const sourceTextArea = document.getElementById('source-text');
+      if (sourceTextArea && !files[0].name.toLowerCase().endsWith('.zip')) {
+           sourceTextArea.value = '';
+      }
+  
+  
+      // Process potentially multiple files (though current input is single)
+      // Using Promise.all to handle asynchronous operations like EPUB conversion
+      const processingPromises = [];
+  
+      for (const file of files) {
+          const fileNameLower = file.name.toLowerCase();
+          console.log(`Processing file: ${file.name}`); // Log file being processed
+  
+          if (fileNameLower.endsWith('.txt') || fileNameLower.endsWith('.ini')) {
+              processingPromises.push(
+                  new Promise((resolve, reject) => {
+                      const reader = new FileReader();
+                      reader.onload = (e) => {
+                          try {
+                              // insertTextIntoSourceArea is defined in this file
+                              insertTextIntoSourceArea(e.target.result); // Insert text content
+                              resolve();
+                          } catch (error) {
+                              console.error(`Error inserting text from ${file.name}:`, error);
+                              reject(error);
+                          }
+                      };
+                      reader.onerror = (e) => {
+                          console.error(`Error reading file ${file.name}:`, e);
+                          alert(`Error reading file: ${file.name}`); // Basic error feedback
+                          reject(e);
+                      };
+                      reader.readAsText(file);
+                  })
+              );
+          } else if (fileNameLower.endsWith('.fb2')) {
+              processingPromises.push(
+                  new Promise((resolve, reject) => {
+                      const reader = new FileReader();
+                      reader.onload = (e) => {
+                          try {
+                              // convertFb2ToTxt and insertTextIntoSourceArea are defined in this file
+                              const text = convertFb2ToTxt(e.target.result);
+                              insertTextIntoSourceArea(text);
+                              resolve();
+                          } catch (error) {
+                              console.error(`Error converting FB2 ${file.name}:`, error);
+                              alert(`Error processing FB2 file: ${file.name}`);
+                              reject(error);
+                          }
+                      };
+                      reader.onerror = (e) => {
+                          console.error(`Error reading file ${file.name}:`, e);
+                          alert(`Error reading file: ${file.name}`);
+                          reject(e);
+                      };
+                      reader.readAsText(file);
+                  })
+              );
+          } else if (fileNameLower.endsWith('.epub')) {
+              // convertEpubToTxt and insertTextIntoSourceArea are defined in this file
+               processingPromises.push(
+                  convertEpubToTxt(file) // Pass the File object directly
+                      .then(text => {
+                           insertTextIntoSourceArea(text); // Insert the extracted text
+                      })
+                      .catch(error => {
+                          console.error(`Error converting EPUB ${file.name}:`, error);
+                          alert(`Error processing EPUB file: ${file.name}`);
+                          // Don't reject the main promise, just log the error
+                      })
+              );
+          } else if (fileNameLower.endsWith('.zip')) {
+              // convertZipToTxt is defined in this file
+              processingPromises.push(
+                   Promise.resolve(convertZipToTxt(file)) // Wrap in Promise.resolve in case it's not async
+                      .catch(error => {
+                          console.error(`Error processing ZIP ${file.name}:`, error);
+                          // convertZipToTxt should ideally handle its own alerts
+                          // Don't reject the main promise, just log the error
+                      })
+              );
+          } else {
+              console.log(`File type not supported for insertion: ${file.name}`);
+              alert(`File type "${file.name.split('.').pop()}" not supported for text insertion.`);
+              // Add a resolved promise for unsupported types to not break Promise.all
+               processingPromises.push(Promise.resolve());
+          }
+      } // End loop through files
+  
+      try {
+          await Promise.all(processingPromises);
+          console.log("All selected files processed.");
+      } catch (error) {
+          console.error("An error occurred during file processing:", error);
+          // General error message if any promise rejected unexpectedly
+          alert("An error occurred while processing the files. Check the console for details.");
+      }
+  
+    // Reset the input value to allow selecting the same file again
+    event.target.value = null;
+  }
+
+// Helper function to insert text into the main source text area
 function insertTextIntoSourceArea(text) {
     const sourceTextArea = document.getElementById('source-text');
     if (sourceTextArea) {
