@@ -3,11 +3,13 @@
 // Depends on:
 // - Functions:
 //   - handleGenerateButtonClick (app_logic.js)
-//   - toggleTheme, openBookView, reloadPage (ui_helpers.js) // Removed saveEpub as it's handled by epub_generator.js
-//   - saveEpub (epub_generator.js) // Added dependency
+//   - toggleTheme, openBookView, reloadPage (ui_helpers.js)
+//   - saveEpub (epub_generator.js)
 //   - showTargetLang, hideTargetLang (ui.js)
 //   - updateVoiceDropdown (voice-dropdown-menu.js)
-//   - insertTextIntoSourceArea, convertFb2ToTxt, convertEpubToTxt, convertZipToTxt (texts_converter.js) // Added dependencies
+//   - insertTextIntoSourceArea, convertFb2ToTxt, convertEpubToTxt, convertZipToTxt (texts_converter.js)
+//   - toggleAdvancedSettingsVisibility, saveSettings (settings.js) // Added dependencies
+//   - attachHelpListeners (help_system.js) // Added dependency
 
 // Helper function to attach event listeners
 function attachEventListeners() {
@@ -26,11 +28,12 @@ function attachEventListeners() {
     insertFileButton.addEventListener('click', handleInsertFileClick);
   }
 
-  // Added: Settings Button Listener
-  const settingsButton = document.getElementById('settings-button');
+  // --- Settings Button Listener ---
+  const settingsButton = document.getElementById('settings-button'); // Use the new ID from HTML
   if (settingsButton) {
-    settingsButton.removeEventListener('click', toggleAdvancedSettings); // Prevent duplicates
-    settingsButton.addEventListener('click', toggleAdvancedSettings);
+    // toggleAdvancedSettingsVisibility is defined in settings.js
+    settingsButton.removeEventListener('click', toggleAdvancedSettingsVisibility); // Prevent duplicates
+    settingsButton.addEventListener('click', toggleAdvancedSettingsVisibility);
   }
 
   // openBookView, reloadPage are defined in ui_helpers.js
@@ -105,6 +108,23 @@ function attachEventListeners() {
     fileInput.removeEventListener('change', handleFileInsert); // Prevent duplicates
     fileInput.addEventListener('change', handleFileInsert);
   }
+  // --- End File Input Listener ---
+
+  // --- Before Unload Listener for Saving Settings ---
+  // saveSettings is defined in settings.js
+  window.removeEventListener('beforeunload', saveSettings); // Prevent duplicates
+  window.addEventListener('beforeunload', saveSettings);
+  // --- End Before Unload Listener ---
+
+  // --- Help System Listeners ---
+  // attachHelpListeners is defined in help_system.js
+  if (typeof attachHelpListeners === 'function') {
+      attachHelpListeners();
+  } else {
+      console.warn("attachHelpListeners function not found.");
+  }
+  // --- End Help System Listeners ---
+
 
   // UI language selector listener is attached within createLanguageSelector in language_dropdown.js
 }
@@ -116,19 +136,6 @@ function handleInsertFileClick() {
   document.getElementById('file-input')?.click();
 }
 
-// Handler to toggle advanced audio settings visibility
-function toggleAdvancedSettings() {
-  const settingsContainer = document.getElementById('advanced-audio-settings');
-  if (settingsContainer) {
-      settingsContainer.classList.toggle('hide');
-      // Optionally, save the visibility state to localStorage if needed
-      // try {
-      //     localStorage.setItem('advancedSettingsVisible', !settingsContainer.classList.contains('hide'));
-      // } catch (e) {
-      //     console.warn("Could not save advanced settings visibility state:", e);
-      // }
-  }
-}
 
 
 // Handler for the initial '+' button click
