@@ -25,37 +25,8 @@ function toggleAdvancedSettingsVisibility() {
         console.warn("Advanced audio settings container ('#advanced-audio-settings') not found.");
     }
 
-    // --- Removed logic targeting old/individual elements ---
-    // const elementsToToggle = [
-    //     document.getElementById('period-replacement-options'),
-    //     document.getElementById('div-rate'), // These are now inside language rows
-    //     document.getElementById('div-pitch'), // These are now inside language rows
-    //     document.getElementById('div-threads'), // Now inside advanced-audio-settings
-    //     document.getElementById('div-mergefiles'), // Now inside advanced-audio-settings
-    //     document.getElementById('dop-settings-label')
-    // ];
-    // elementsToToggle.forEach(el => {
-    //     if (el) el.classList.toggle('hidden-option', !settingsVisible);
-    // });
-
-    // --- Removed logic for options/optionslite class toggle ---
-    // const optionsContainer = document.querySelector('.options');
-    // if (optionsContainer) {
-    //     optionsContainer.classList.toggle('optionslite', !settingsVisible);
-    // }
-
-    // --- Removed logic related to text/stat area display toggle (should be handled elsewhere if needed) ---
-    // const textArea = document.getElementById('text-area'); // Assuming 'text-area' is the ID for source-text container?
-    // const statArea = document.getElementById('stat-area');
-    // if (textArea) textArea.style.display = 'block';
-    // if (statArea) statArea.style.display = 'block';
-
-    // --- Removed logic for displaying book parts (misplaced here) ---
-    // if (typeof book !== 'undefined' && book && book.all_sentences.length > 0) { ... }
-
-    // --- Removed logic for hiding dop-settings-label ---
-    // const dopSettingsLabel = document.getElementById('dop-settings-label');
-    // if (dopSettingsLabel) { dopSettingsLabel.style.display = 'none'; }
+    // Toggle the class on the body for CSS rules targeting rate/pitch sliders
+    document.body.classList.toggle('settings-visible', settingsVisible);
 }
 
 
@@ -85,13 +56,14 @@ function saveSettings() {
         // const pitch_str = document.querySelector('#pitch-str'); // Outdated ID?
         const threads_value_span = document.querySelector('.threads-value'); // Use class
         const merge_value_span = document.querySelector('.merge-value'); // Use class
-        if (threads_value_span) localStorage.setItem('threads_value_textContent', threads_value_span.textContent);
-        if (merge_value_span) localStorage.setItem('merge_value_textContent', merge_value_span.textContent);
+        // Add null checks before accessing textContent
+        if (threads_value_span && threads_value_span.textContent) localStorage.setItem('threads_value_textContent', threads_value_span.textContent);
+        if (merge_value_span && merge_value_span.textContent) localStorage.setItem('merge_value_textContent', merge_value_span.textContent);
 
 
         // Save other settings if they exist
-        if (pointsSelect) localStorage.setItem('pointsSelect_value', pointsSelect.value);
-        if (pointsType) localStorage.setItem('pointsType_innerHTML', pointsType.innerHTML);
+        if (pointsSelect && pointsSelect.value) localStorage.setItem('pointsSelect_value', pointsSelect.value);
+        if (pointsType && pointsType.innerHTML) localStorage.setItem('pointsType_innerHTML', pointsType.innerHTML);
         // if (voice) localStorage.setItem('voice_value', voice.value); // Outdated
 
         // Save visibility state
@@ -116,27 +88,43 @@ function loadSettings() {
         const max_threads = document.querySelector('.max-threads'); // Correct selector
         const mergefiles = document.querySelector('.mergefiles'); // Correct selector
 
-        // Load slider values
-        if (slRate && localStorage.getItem('sl_rate_value')) { slRate.value = localStorage.getItem('sl_rate_value'); }
-        if (slPitch && localStorage.getItem('sl_pitch_value')) { slPitch.value = localStorage.getItem('sl_pitch_value'); }
-        if (max_threads && localStorage.getItem('max_threads_value')) { max_threads.value = localStorage.getItem('max_threads_value'); }
-        if (mergefiles && localStorage.getItem('mergefiles_value')) { mergefiles.value = localStorage.getItem('mergefiles_value'); }
+        // Load slider values (Add null checks)
+        const slRateValue = localStorage.getItem('sl_rate_value');
+        if (slRate && slRateValue !== null) { slRate.value = slRateValue; }
+
+        const slPitchValue = localStorage.getItem('sl_pitch_value');
+        if (slPitch && slPitchValue !== null) { slPitch.value = slPitchValue; }
+
+        const maxThreadsValue = localStorage.getItem('max_threads_value');
+        if (max_threads && maxThreadsValue !== null) { max_threads.value = maxThreadsValue; }
+
+        const mergefilesValue = localStorage.getItem('mergefiles_value');
+        if (mergefiles && mergefilesValue !== null) { mergefiles.value = mergefilesValue; }
+
 
         // Load text values associated with sliders (optional, can be derived by triggering change handler)
         const threads_value_span = document.querySelector('.threads-value'); // Use class
         const merge_value_span = document.querySelector('.merge-value'); // Use class
-        if (threads_value_span && localStorage.getItem('threads_value_textContent')) { threads_value_span.textContent = localStorage.getItem('threads_value_textContent'); }
-        if (merge_value_span && localStorage.getItem('merge_value_textContent')) { merge_value_span.textContent = localStorage.getItem('merge_value_textContent'); }
+        // Add null checks
+        const threadsTextContent = localStorage.getItem('threads_value_textContent');
+        if (threads_value_span && threadsTextContent !== null) { threads_value_span.textContent = threadsTextContent; }
+
+        const mergeTextContent = localStorage.getItem('merge_value_textContent');
+        if (merge_value_span && mergeTextContent !== null) { merge_value_span.textContent = mergeTextContent; }
         // It might be better to trigger the slider change handler after loading values instead of saving/loading textContent
 
-        // Load other settings if they exist
-        if (pointsSelect && localStorage.getItem('pointsSelect_value')) { pointsSelect.value = localStorage.getItem('pointsSelect_value'); }
-        if (pointsType && localStorage.getItem('pointsType_innerHTML')) { pointsType.innerHTML = localStorage.getItem('pointsType_innerHTML'); }
+        // Load other settings if they exist (Add null checks)
+        const pointsSelectValue = localStorage.getItem('pointsSelect_value');
+        if (pointsSelect && pointsSelectValue !== null) { pointsSelect.value = pointsSelectValue; }
+
+        const pointsTypeInnerHTML = localStorage.getItem('pointsType_innerHTML');
+        if (pointsType && pointsTypeInnerHTML !== null) { pointsType.innerHTML = pointsTypeInnerHTML; }
         // if (voice && localStorage.getItem('voice_value')) { voice.value = localStorage.getItem('voice_value'); } // Outdated
 
         // Load visibility state
-        if (localStorage.getItem('settingsVisible')) {
-            settingsVisible = localStorage.getItem('settingsVisible') === 'true';
+        const savedVisibility = localStorage.getItem('settingsVisible');
+        if (savedVisibility !== null) { // Check for null explicitly
+            settingsVisible = savedVisibility === 'true';
         } else {
             settingsVisible = false; // Default to hidden if not saved
         }
@@ -147,24 +135,15 @@ function loadSettings() {
         if (advancedSettingsContainer) {
             advancedSettingsContainer.classList.toggle('hide', !settingsVisible);
         } else {
+            // This warning might appear if loadSettings runs before the element is fully parsed,
+            // but the toggle should still work later if the element exists then.
             console.warn("Advanced audio settings container ('#advanced-audio-settings') not found during load.");
         }
 
-        // --- Removed logic applying .hidden-option to old elements ---
-        // const elementsToToggle = [ ... ];
-        // elementsToToggle.forEach(el => { ... });
+        // Apply the class to the body based on loaded state
+        document.body.classList.toggle('settings-visible', settingsVisible);
 
-        // --- Removed logic applying optionslite class ---
-        // const optionsContainer = document.querySelector('.options');
-        // if (optionsContainer) { ... }
 
-        // Update global threads_info (needs refactor - this global dependency is problematic)
-        // This should ideally be updated when the slider value changes, not just on load.
-        // if (typeof threads_info !== 'undefined' && max_threads) {
-        //      threads_info.count = parseInt(max_threads.value); // 'count' seems wrong here, maybe 'max'?
-        // } else if (typeof threads_info !== 'undefined') {
-        //      threads_info.count = 10; // Default
-        // }
 
 
     } catch (e) {
@@ -172,5 +151,3 @@ function loadSettings() {
     }
 }
 
-// Note: loadSettings() should be called during initialization (e.g., in initialization.js)
-// Note: saveSettings() should be called before unload (listener in event_listeners.js)

@@ -170,6 +170,17 @@ flex-basis: 60px; /* Estimate for buttons + gap */
   font-size: 0.85rem; /* Slightly smaller font for controls */
 }
 
+/* Hide rate/pitch controls by default */
+.rate-pitch-controls {
+    display: none;
+}
+
+/* Show rate/pitch controls only when settings are visible (body has .settings-visible class) */
+body.settings-visible .rate-pitch-controls {
+    display: flex; /* Revert to flex display when visible */
+}
+
+
 .slider-container label {
   flex-basis: 35px; /* Fixed width for slider labels */
   flex-shrink: 0;
@@ -384,9 +395,20 @@ button,
   font-size: 1rem;
   transition: background-color 0.3s ease;
   flex-shrink: 0; /* Prevent buttons from shrinking */
-  height: 38px; /* Match select height roughly */
+  /* Removed fixed height to allow content to determine height */
+  /* height: 38px; */
   align-self: center; /* Align button vertically with selects */
+  line-height: normal; /* Ensure default line height */
 }
+
+/* Adjustments for the moved Insert File button (optional, can rely on inline style) */
+/* Example: If you wanted to remove the inline style and use CSS */
+/* #advanced-audio-settings #insert-file-button {
+    margin-top: 10px;
+    width: auto; /* Allow button to size naturally */
+/*    padding: 10px 15px; /* Restore default padding if needed */
+/* } */
+
 
 button:hover,
 .add-lang-button:hover,

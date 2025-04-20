@@ -107,12 +107,14 @@
       <select id="sl-voice" class="voice-select"></select>
       <!-- Voice Controls Added -->
       <div class="voice-controls">
-        <div class="slider-container">
+        <!-- ADDED CLASS HERE -->
+        <div class="slider-container rate-pitch-controls">
           <label for="sl-rate">Rate:</label>
           <input type="range" id="sl-rate" class="rate-slider" min="-100" max="100" value="0">
           <span class="rate-value">+0%</span>
         </div>
-        <div class="slider-container">
+        <!-- ADDED CLASS HERE -->
+        <div class="slider-container rate-pitch-controls">
           <label for="sl-pitch">Pitch:</label>
           <input type="range" id="sl-pitch" class="pitch-slider" min="-50" max="50" value="0">
           <span class="pitch-value">+0Hz</span>
@@ -134,12 +136,14 @@
       <button class="remove-lang-button" data-target-container-id="tl1-container">-</button>
       <!-- Voice Controls Added -->
       <div class="voice-controls">
-        <div class="slider-container">
+        <!-- ADDED CLASS HERE -->
+        <div class="slider-container rate-pitch-controls">
           <label for="tl1-rate">Rate:</label>
           <input type="range" id="tl1-rate" class="rate-slider" min="-100" max="100" value="0">
           <span class="rate-value">+0%</span>
         </div>
-        <div class="slider-container">
+        <!-- ADDED CLASS HERE -->
+        <div class="slider-container rate-pitch-controls">
           <label for="tl1-pitch">Pitch:</label>
           <input type="range" id="tl1-pitch" class="pitch-slider" min="-50" max="50" value="0">
           <span class="pitch-value">+0Hz</span>
@@ -158,12 +162,14 @@
       <button class="remove-lang-button" data-target-container-id="tl2-container">-</button>
       <!-- Voice Controls Added -->
       <div class="voice-controls">
-        <div class="slider-container">
+        <!-- ADDED CLASS HERE -->
+        <div class="slider-container rate-pitch-controls">
           <label for="tl2-rate">Rate:</label>
           <input type="range" id="tl2-rate" class="rate-slider" min="-100" max="100" value="0">
           <span class="rate-value">+0%</span>
         </div>
-        <div class="slider-container">
+        <!-- ADDED CLASS HERE -->
+        <div class="slider-container rate-pitch-controls">
           <label for="tl2-pitch">Pitch:</label>
           <input type="range" id="tl2-pitch" class="pitch-slider" min="-50" max="50" value="0">
           <span class="pitch-value">+0Hz</span>
@@ -182,12 +188,14 @@
       <button class="remove-lang-button" data-target-container-id="tl3-container">-</button>
       <!-- Voice Controls Added -->
       <div class="voice-controls">
-        <div class="slider-container">
+        <!-- ADDED CLASS HERE -->
+        <div class="slider-container rate-pitch-controls">
           <label for="tl3-rate">Rate:</label>
           <input type="range" id="tl3-rate" class="rate-slider" min="-100" max="100" value="0">
           <span class="rate-value">+0%</span>
         </div>
-        <div class="slider-container">
+        <!-- ADDED CLASS HERE -->
+        <div class="slider-container rate-pitch-controls">
           <label for="tl3-pitch">Pitch:</label>
           <input type="range" id="tl3-pitch" class="pitch-slider" min="-50" max="50" value="0">
           <span class="pitch-value">+0Hz</span>
@@ -204,12 +212,14 @@
       <button class="remove-lang-button" data-target-container-id="tl4-container">-</button>
       <!-- Voice Controls Added -->
       <div class="voice-controls">
-        <div class="slider-container">
+        <!-- ADDED CLASS HERE -->
+        <div class="slider-container rate-pitch-controls">
           <label for="tl4-rate">Rate:</label>
           <input type="range" id="tl4-rate" class="rate-slider" min="-100" max="100" value="0">
           <span class="rate-value">+0%</span>
         </div>
-        <div class="slider-container">
+        <!-- ADDED CLASS HERE -->
+        <div class="slider-container rate-pitch-controls">
           <label for="tl4-pitch">Pitch:</label>
           <input type="range" id="tl4-pitch" class="pitch-slider" min="-50" max="50" value="0">
           <span class="pitch-value">+0Hz</span>
@@ -236,6 +246,8 @@
         <!-- Ensure class="merge-value" and id="mergefiles-str" are present -->
         <span class="merge-value" id="mergefiles-str" style="min-width: 50px; text-align: right;">ALL</span> <!-- Adjusted width -->
       </div>
+      <!-- MOVED BUTTON HERE -->
+      <button id="insert-file-button" style="margin-top: 10px;">Insert Text File</button> <!-- Placeholder text -->
     </div>
 
     <br>
@@ -243,8 +255,6 @@
     <textarea id="source-text" placeholder="Enter your source text here..."></textarea>
     <!-- Hidden file input -->
     <input type="file" id="file-input" accept=".txt, .fb2, .epub, .ini, .zip" multiple style="display: none;">
-    <!-- Button to trigger file input -->
-    <button id="insert-file-button" style="margin-right: 10px;">Insert Text File</button> <!-- Placeholder text -->
     <button id="generate-button">Generate</button> 
     <!-- Moved Post-Translation Buttons Here -->
     <button id="open-book-view-button" class="hide" style="margin-left: 10px;">Open in Book-View</button>
