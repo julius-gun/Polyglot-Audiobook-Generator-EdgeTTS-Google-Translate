@@ -55,7 +55,9 @@
 	_handleErrorOrRetry(errorContext) {
 		if (this.currentRetryCount < this.maxRetries) {
 			this.currentRetryCount++;
-			const retryMsg = `Error (${errorContext}) - Retrying (${this.currentRetryCount}/${this.maxRetries})...`;
+			// Use formatString or similar helper assuming it exists
+			const retryMsgTemplate = translations[currentLanguage]?.statusRetrying || translations.en.statusRetrying;
+			const retryMsg = formatString(retryMsgTemplate, this.currentRetryCount, this.maxRetries);
 			console.warn(`Part ${this.indexpart + 1}: ${retryMsg}`);
 			this.update_stat(retryMsg);
 			// Use setTimeout for the delay before restarting
@@ -69,7 +71,10 @@
 			}, this.retryDelay);
 		} else {
 			// Retries exhausted, signal final failure
-			const finalErrorMsg = `Failed (${errorContext}) after ${this.maxRetries} retries.`;
+			const finalErrorMsgTemplate = translations[currentLanguage]?.statusFailedAfterRetries || translations.en.statusFailedAfterRetries;
+			// Translate the errorContext if it's a known key, otherwise use it as is
+			const translatedErrorContext = translations[currentLanguage]?.[errorContext] || translations.en[errorContext] || errorContext;
+			const finalErrorMsg = formatString(finalErrorMsgTemplate, translatedErrorContext, this.maxRetries);
 			console.error(`Part ${this.indexpart + 1}: ${finalErrorMsg}`);
 			this.update_stat(finalErrorMsg);
 			this._triggerCallback(true); // Signal final error
@@ -115,7 +120,7 @@
 
 	onSocketOpen(event) {
 		this.end_message_received = false
-		this.update_stat("Connecting...") // More accurate initial status
+		this.update_stat(translations[currentLanguage]?.statusConnecting || translations.en.statusConnecting); // Translate "Connecting..."
 
 		try {
 			var my_data = this.date_to_string()
@@ -136,10 +141,10 @@
 					this.mkssml()
 				)
 			)
-			this.update_stat("Sent request")
+			this.update_stat(translations[currentLanguage]?.statusSentRequest || translations.en.statusSentRequest); // Translate "Sent request"
 		} catch (error) {
 			console.error(`Error sending data on WebSocket for part ${this.indexpart + 1}:`, error);
-			this.update_stat("Error sending request");
+			this.update_stat(translations[currentLanguage]?.statusErrorSendingRequest || translations.en.statusErrorSendingRequest); // Translate "Error sending request"
 			this._triggerCallback(true); // Signal error
 			this.clear(); // Close socket if send fails
 		}
@@ -167,7 +172,7 @@
 	async processAudioBlobs() {
 		if (this.audios.length === 0 && this.end_message_received) {
 			console.warn(`Part ${this.indexpart + 1}: Received 'turn.end' but no audio data blobs.`);
-			this.update_stat("Error: No audio data");
+			this.update_stat(translations[currentLanguage]?.statusErrorNoAudio || translations.en.statusErrorNoAudio); // Translate "Error: No audio data"
 			this.mp3_saved = false;
 			this._triggerCallback(true); // Signal error: completed but no data
 			return;
@@ -210,18 +215,18 @@
 
 			if (this.my_uint8Array.length > 0) {
 				this.mp3_saved = true;
-				this.update_stat("Processed");
+				this.update_stat(translations[currentLanguage]?.statusProcessed || translations.en.statusProcessed); // Translate "Processed"
 				// Don't trigger callback here yet, wait for socket close
 			} else {
 				console.warn(`Part ${this.indexpart + 1}: Processed blobs but result is empty.`);
-				this.update_stat("Error: Empty audio");
+				this.update_stat(translations[currentLanguage]?.statusErrorEmptyAudio || translations.en.statusErrorEmptyAudio); // Translate "Error: Empty audio"
 				this.mp3_saved = false;
 				this._triggerCallback(true); // Signal error: processed but empty
 			}
 
 		} catch (error) {
 			console.error(`Error processing audio blobs for part ${this.indexpart + 1}:`, error);
-			this.update_stat("Error processing audio");
+			this.update_stat(translations[currentLanguage]?.statusErrorProcessingAudio || translations.en.statusErrorProcessingAudio); // Translate "Error processing audio"
 			this.mp3_saved = false;
 			this._triggerCallback(true); // Signal error during processing
 		}
@@ -261,18 +266,19 @@
 		if (cleanClosure) {
 			// Only update to "Completed" if it wasn't already marked as failed during processing
 			if (!this.callbackCalled) { // Avoid overwriting a failure status set earlier
-				this.update_stat("Completed"); // Final status update
+				this.update_stat(translations[currentLanguage]?.statusCompleted || translations.en.statusCompleted); // Translate "Completed"
 			}
 			this._triggerCallback(false); // Signal successful completion (or confirm existing success)
 		} else {
 			// Handle unexpected closure only if a final callback hasn't been made yet
 			if (!this.callbackCalled) {
-				let reason = `Connection Closed (Code: ${event.code}, Reason: ${event.reason || 'No reason'})`;
+				let reasonBase = translations[currentLanguage]?.statusConnClosed || translations.en.statusConnClosed;
+				let reason = `${reasonBase} (Code: ${event.code}, Reason: ${event.reason || 'No reason'})`;
 				if (!this.end_message_received) reason += " - No 'turn.end'.";
 				if (!this.mp3_saved) reason += " - Audio not saved.";
 				console.warn(`Part ${this.indexpart + 1}: ${reason}`);
 				// Attempt retry or signal final failure
-				this._handleErrorOrRetry("Connection Closed");
+				this._handleErrorOrRetry("statusConnClosed"); // Pass the key for translation in _handleErrorOrRetry
 			}
 		}
 		// Resources are cleaned up via _triggerCallback -> caller -> clearOldRun/part.clear()
@@ -288,7 +294,11 @@
 		// DO NOT reset this.callbackCalled here, it prevents multiple final callbacks
 
 		// Update status based on whether this is the first attempt or a retry
-		const initialMessage = this.currentRetryCount === 0 ? "Initializing" : `Retrying (${this.currentRetryCount}/${this.maxRetries})...`;
+		const initialMessageKey = this.currentRetryCount === 0 ? 'statusInitializing' : 'statusRetrying';
+		let initialMessage = translations[currentLanguage]?.[initialMessageKey] || translations.en[initialMessageKey];
+		if (initialMessageKey === 'statusRetrying') {
+			initialMessage = formatString(initialMessage, this.currentRetryCount, this.maxRetries);
+		}
 		this.update_stat(initialMessage);
 
 		if ("WebSocket" in window) {
@@ -321,11 +331,11 @@
 			} catch (error) {
 				console.error(`Error creating WebSocket for part ${this.indexpart + 1}:`, error);
 				// Attempt retry or signal final failure
-				this._handleErrorOrRetry("WebSocket Creation Failed");
+				this._handleErrorOrRetry("statusErrorWebSocketCreate"); // Pass key
 			}
 		} else {
 			console.error("WebSocket NOT supported by your Browser!");
-			this.update_stat("Error: WebSocket Not Supported");
+			this.update_stat(translations[currentLanguage]?.statusErrorWebSocketSupport || translations.en.statusErrorWebSocketSupport); // Translate "Error: WebSocket Not Supported"
 			this._triggerCallback(true); // Signal error immediately, no retry possible
 		}
 	}
@@ -336,7 +346,7 @@
 		if (!this.callbackCalled) {
 			console.error(`WebSocket Error for part ${this.indexpart + 1}:`, event);
 			// Attempt retry or signal final failure
-			this._handleErrorOrRetry("WebSocket Error");
+			this._handleErrorOrRetry("statusErrorWebSocket"); // Pass key
 		} else {
 			console.warn(`WebSocket Error for part ${this.indexpart + 1} occurred after completion callback was already triggered.`, event);
 		}

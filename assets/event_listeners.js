@@ -190,29 +190,39 @@ function handleSliderChange(event) {
   let valueSpan;
   let textContent;
 
+  // Find the corresponding value span relative to the slider
+  const parent = slider.closest('.slider-container') || slider.parentElement;
+  if (!parent) return; // Exit if parent not found
+
   if (slider.classList.contains('rate-slider')) {
-    valueSpan = slider.parentElement.querySelector('.rate-value');
+    valueSpan = parent.querySelector('.rate-value');
     const prefix = value > 0 ? '+' : '';
     textContent = `${prefix}${value}%`;
   } else if (slider.classList.contains('pitch-slider')) {
-    valueSpan = slider.parentElement.querySelector('.pitch-value');
+    valueSpan = parent.querySelector('.pitch-value');
     const prefix = value > 0 ? '+' : '';
     textContent = `${prefix}${value}Hz`;
   } else if (slider.classList.contains('max-threads')) {
-    valueSpan = slider.parentElement.querySelector('.threads-value'); // Corrected selector
+    valueSpan = parent.querySelector('.threads-value');
     textContent = `${value}`; // Display integer value
   } else if (slider.classList.contains('mergefiles')) {
-    valueSpan = slider.parentElement.querySelector('.merge-value'); // Corrected selector
-    textContent = value == 100 ? "ALL" : `${value} pcs.`; // Display "ALL" or number
+    valueSpan = parent.querySelector('.merge-value');
+    // Translate "ALL" and "pcs."
+    const allText = translations[currentLanguage]?.textAll || translations.en.textAll;
+    const pcsText = translations[currentLanguage]?.textPieces || translations.en.textPieces;
+    textContent = value == 100 ? allText : `${value} ${pcsText}`;
   }
 
   if (valueSpan) {
     valueSpan.textContent = textContent;
+  } else {
+      // console.warn("Could not find value span for slider:", slider.id); // Optional warning
   }
 }
 
 // Handler for file input changes (MOVED FROM texts_converter.js)
 // Depends on: insertTextIntoSourceArea, convertFb2ToTxt, convertEpubToTxt, convertZipToTxt (from texts_converter.js)
+// Depends on: formatString (assumed helper), translations, currentLanguage
 async function handleFileInsert(event) { // Made async to handle await for EPUB/ZIP
   const files = event.target.files;
   if (!files || files.length === 0) {
@@ -251,7 +261,8 @@ async function handleFileInsert(event) { // Made async to handle await for EPUB/
                     };
                     reader.onerror = (e) => {
                         console.error(`Error reading file ${file.name}:`, e);
-                        alert(`Error reading file: ${file.name}`); // Basic error feedback
+                        const alertMsgTemplate = translations[currentLanguage]?.alertFileReadError || translations.en.alertFileReadError;
+                        alert(formatString(alertMsgTemplate, file.name)); // Basic error feedback
                         reject(e);
                     };
                     reader.readAsText(file);
@@ -269,13 +280,15 @@ async function handleFileInsert(event) { // Made async to handle await for EPUB/
                             resolve();
                         } catch (error) {
                             console.error(`Error converting FB2 ${file.name}:`, error);
-                            alert(`Error processing FB2 file: ${file.name}`);
+                            const alertMsgTemplate = translations[currentLanguage]?.alertFb2Error || translations.en.alertFb2Error;
+                            alert(formatString(alertMsgTemplate, file.name));
                             reject(error);
                         }
                     };
                     reader.onerror = (e) => {
                         console.error(`Error reading file ${file.name}:`, e);
-                        alert(`Error reading file: ${file.name}`);
+                        const alertMsgTemplate = translations[currentLanguage]?.alertFileReadError || translations.en.alertFileReadError;
+                        alert(formatString(alertMsgTemplate, file.name));
                         reject(e);
                     };
                     reader.readAsText(file);
@@ -290,7 +303,8 @@ async function handleFileInsert(event) { // Made async to handle await for EPUB/
                     })
                     .catch(error => {
                         console.error(`Error converting EPUB ${file.name}:`, error);
-                        alert(`Error processing EPUB file: ${file.name}`);
+                        const alertMsgTemplate = translations[currentLanguage]?.alertEpubError || translations.en.alertEpubError;
+                        alert(formatString(alertMsgTemplate, file.name));
                         // Don't reject the main promise, just log the error
                     })
             );
@@ -300,13 +314,16 @@ async function handleFileInsert(event) { // Made async to handle await for EPUB/
                  Promise.resolve(convertZipToTxt(file)) // Wrap in Promise.resolve in case it's not async
                     .catch(error => {
                         console.error(`Error processing ZIP ${file.name}:`, error);
-                        // convertZipToTxt should ideally handle its own alerts
+                        // convertZipToTxt should ideally handle its own alerts, but add a generic one here if needed
+                        // const alertMsg = translations[currentLanguage]?.alertZipProcError || translations.en.alertZipProcError;
+                        // alert(alertMsg);
                         // Don't reject the main promise, just log the error
                     })
             );
         } else {
             console.log(`File type not supported for insertion: ${file.name}`);
-            alert(`File type "${file.name.split('.').pop()}" not supported for text insertion.`);
+            const alertMsgTemplate = translations[currentLanguage]?.alertFileTypeNotSupported || translations.en.alertFileTypeNotSupported;
+            alert(formatString(alertMsgTemplate, file.name.split('.').pop()));
             // Add a resolved promise for unsupported types to not break Promise.all
              processingPromises.push(Promise.resolve());
         }
@@ -318,7 +335,8 @@ async function handleFileInsert(event) { // Made async to handle await for EPUB/
     } catch (error) {
         console.error("An error occurred during file processing:", error);
         // General error message if any promise rejected unexpectedly
-        alert("An error occurred while processing the files. Check the console for details.");
+        const alertMsg = translations[currentLanguage]?.alertGenericFileError || translations.en.alertGenericFileError;
+        alert(alertMsg);
     }
 
   // Reset the input value to allow selecting the same file again

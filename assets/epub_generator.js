@@ -1,4 +1,5 @@
 // Contains functions for generating the EPUB file
+// Depends on: translations, currentLanguage
 
 function saveEpub() {
     // Reuse makeBook function, but we need to get the translated text
@@ -8,16 +9,22 @@ function saveEpub() {
     makeBook(translatedBookContent); // Pass the content to makeBook
   }
   
-  function makeBook(text) {
+  async function makeBook(text) { // Make async to await translations
     const zip = new JSZip();
     const mimetype = "application/epub+zip";
+
+    // Get translated metadata
+    const epubTitle = await fetchTranslation(translations.en.epubDefaultTitle, currentLanguage);
+    const epubAuthor = await fetchTranslation(translations.en.epubDefaultAuthor, currentLanguage);
+    const epubFilename = await fetchTranslation(translations.en.epubDefaultFilename, currentLanguage);
+
     const meta = `<?xml version="1.0" encoding="UTF-8"?>
     <package xmlns="http://www.idpf.org/2007/opf" unique-identifier="bookid" version="2.0">
     <metadata xmlns:dc="http://purl.org/dc/elements/1.1/">
-        <dc:title>Bilingual Book</dc:title>
-        <dc:language>en</dc:language>
+        <dc:title>${epubTitle}</dc:title>
+        <dc:language>${currentLanguage}</dc:language> <!-- Use current UI lang? Or source lang? -->
         <dc:identifier id="bookid">12345</dc:identifier>
-        <dc:creator>Lachlan Dauth</dc:creator>
+        <dc:creator>${epubAuthor}</dc:creator>
     </metadata>
     <manifest>
         <item href="toc.ncx" media-type="application/x-dtbncx+xml" id="ncx"/>
@@ -37,12 +44,12 @@ function saveEpub() {
         <meta name="dtb:maxPageNumber" content="0"/>
     </head>
     <docTitle>
-        <text>Bilingual Book</text>
+        <text>${epubTitle}</text>
     </docTitle>
     </ncx>`;
     const chapter1 = `<html xmlns="http://www.w3.org/1999/xhtml">
     <head>
-        <title>Chapter 1</title>
+        <title>Chapter 1</title> <!-- Keep simple or translate? -->
     </head>
     <body>
         ` + text + `
@@ -61,6 +68,6 @@ function saveEpub() {
     zip.file("chapter1.xhtml", chapter1);
   
     zip.generateAsync({ type: "blob" }).then(function (content) {
-      saveAs(content, "Bilingual Book.epub");
+      saveAs(content, epubFilename); // Use translated filename
     });
   }

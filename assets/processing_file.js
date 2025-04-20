@@ -1,7 +1,9 @@
 ﻿class ProcessingFile {
 	constructor(_file_name, _text, _FIRST_STRINGS_LENGTH, _LAST_STRINGS_LENGTH) {
 		this.file_names = []
-		this.file_names.push([_file_name, 0])
+		// Use translated default name if _file_name is null/empty, otherwise use provided name
+		const defaultName = translations[currentLanguage]?.processingFileDefaultName || translations.en.processingFileDefaultName || 'Book';
+		this.file_names.push([_file_name || defaultName, 0])
 		this.FIRST_STRINGS_LENGTH = _FIRST_STRINGS_LENGTH;
 		this.LAST_STRINGS_LENGTH = _LAST_STRINGS_LENGTH;
 		this.full_text = _text
@@ -92,7 +94,8 @@
 	clear() {
 		this.file_names.length = 0
 		this.file_names = []
-		this.file_names.push(["Книга", 0])
+		const defaultName = translations[currentLanguage]?.processingFileDefaultName || translations.en.processingFileDefaultName || 'Book';
+		this.file_names.push([defaultName, 0]) // Use translated default name on clear
 		this.full_text = ""
 		this.pre_sentences.length = 0
 		this.all_sentences.length = 0

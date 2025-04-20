@@ -36,46 +36,85 @@ async function translateUIElements() {
     enterSourceTextLabel: document.querySelector('h3'),
     headerLanguageLabel: document.querySelector('#header-language-label'),
     headerVoiceLabel: document.querySelector('#header-voice-label'),
+    // Added elements
+    slRateLabel: document.querySelector('#sl-container label[for="sl-rate"]'),
+    slPitchLabel: document.querySelector('#sl-container label[for="sl-pitch"]'),
+    tl1RateLabel: document.querySelector('#tl1-container label[for="tl1-rate"]'),
+    tl1PitchLabel: document.querySelector('#tl1-container label[for="tl1-pitch"]'),
+    tl2RateLabel: document.querySelector('#tl2-container label[for="tl2-rate"]'),
+    tl2PitchLabel: document.querySelector('#tl2-container label[for="tl2-pitch"]'),
+    tl3RateLabel: document.querySelector('#tl3-container label[for="tl3-rate"]'),
+    tl3PitchLabel: document.querySelector('#tl3-container label[for="tl3-pitch"]'),
+    tl4RateLabel: document.querySelector('#tl4-container label[for="tl4-rate"]'),
+    tl4PitchLabel: document.querySelector('#tl4-container label[for="tl4-pitch"]'),
+    advancedAudioSettingsTitle: document.getElementById('advanced-audio-settings-title'),
+    threadsLabel: document.querySelector('#div-threads label[for="max-threads"]'),
+    mergeByLabel: document.querySelector('#div-mergefiles label[for="mergefiles"]'),
+    statAreaPlaceholder: document.getElementById('stat-area'), // Placeholder
+    settingsButtonTitle: document.getElementById('settings-button'), // Title attribute
+    // Firefox Warning elements
+    firefoxWarningTitle: document.querySelector('#firefox-warning strong'),
+    firefoxWarningBody: document.querySelector('#firefox-warning'), // Target the div itself for the main text
+  };
+
+  // Helper to get translation, falling back to English
+  const getTranslation = async (key) => {
+    const englishText = translations.en[key];
+    if (!englishText) return `[${key}]`; // Return key if not found in English
+    return await fetchTranslation(englishText, currentLanguage);
   };
 
   for (const key in uiElements) {
     // Check if the key exists in the base English translations
-    if (uiElements.hasOwnProperty(key) && translations['en'][key]) {
+    if (uiElements.hasOwnProperty(key) && translations.en[key]) {
       const element = uiElements[key];
       if (element) {
         const englishText = translations['en'][key];
         // Fetch translation for the UI element text itself
         // Depends on: fetchTranslation (translation_api.js), currentLanguage (global), translations (global)
-        const translatedText = await fetchTranslation(englishText, currentLanguage);
+        const translatedText = await getTranslation(key);
 
-        if (key === 'enterText') {
+        if (key === 'enterText' || key === 'statAreaPlaceholder') {
           element.placeholder = translatedText;
+        } else if (key === 'settingsButtonTitle') {
+          element.title = translatedText;
         } else if (key === 'translatedSpan') {
           // Special handling for progress info - needs translated "Translated" word
-          const translatedWord = await fetchTranslation(translations['en'].translated, currentLanguage);
-          const currentProgressText = element.textContent || ''; // Get current numbers, default to empty string
+          const translatedWord = await getTranslation('translated'); // Use helper
+          const currentProgressText = element.textContent || '';
           const numbersMatch = currentProgressText.match(/(\d+)\s*\/\s*(\d+)/);
           const currentTranslated = numbersMatch ? numbersMatch[1] : '0';
           const currentTotal = numbersMatch ? numbersMatch[2] : '0';
           element.textContent = `${translatedWord}: ${currentTranslated} / ${currentTotal}`;
         } else if (key === 'etaSpan') {
           // Special handling for progress info - needs translated "ETA" word
-          const translatedWord = await fetchTranslation(translations['en'].eta, currentLanguage);
-          const currentEtaText = element.textContent || ''; // Get current time, default to empty string
-          const timeMatch = currentEtaText.split(': ')[1]; // Get the part after ": "
-          const currentTime = timeMatch ? timeMatch : (await fetchTranslation(translations['en'].calculating || 'Calculating...', currentLanguage)); // Translate "Calculating..."
+          const translatedWord = await getTranslation('eta'); // Use helper
+          const currentEtaText = element.textContent || '';
+          const timeMatch = currentEtaText.split(': ')[1];
+          const calculatingText = await getTranslation('statusCalculating'); // Translate "Calculating..."
+          const currentTime = timeMatch ? timeMatch : calculatingText;
           element.textContent = `${translatedWord}: ${currentTime}`;
         } else if (key === 'uiLanguageLabel') {
-          const translatedWord = await fetchTranslation(translations['en'].uiLanguage, currentLanguage);
+          const translatedWord = await getTranslation('uiLanguage'); // Use helper
           element.textContent = `${translatedWord}:`;
-        } else {
+        } else if (key === 'firefoxWarningBody') {
+          // For the warning body, we need to preserve the <strong> tag
+          const titleText = await getTranslation('firefoxWarningTitle');
+          element.innerHTML = `<strong>${titleText}</strong> ${translatedText}`; // Reconstruct with translated parts
+        } else if (key !== 'firefoxWarningTitle') { // Skip title as it's handled above
           // For buttons, labels, titles, headers etc.
           element.textContent = translatedText;
         }
+      } else {
+        // console.warn(`UI element not found for key: ${key}`); // Optional warning
       }
     }
   }
 }
+// Add keys for Rate/Pitch labels
+translations.en.labelRate = 'Rate:';
+translations.en.labelPitch = 'Pitch:';
+
 
 // NEW: Function to rebuild language and voice dropdowns
 async function rebuildLanguageDropdowns() {
@@ -113,18 +152,18 @@ async function rebuildLanguageDropdowns() {
 
   // --- Target Language 1 ---
   if (tl1Container) {
-  const newTl1Select = await createLanguageDropdown('tl1');
-  const oldTl1Select = tl1Container.querySelector('select#tl1');
-  if (oldTl1Select) oldTl1Select.replaceWith(newTl1Select); else tl1Container.insertBefore(newTl1Select, tl1Container.querySelector('#tl1-voice'));
+    const newTl1Select = await createLanguageDropdown('tl1');
+    const oldTl1Select = tl1Container.querySelector('select#tl1');
+    if (oldTl1Select) oldTl1Select.replaceWith(newTl1Select); else tl1Container.insertBefore(newTl1Select, tl1Container.querySelector('#tl1-voice'));
 
-  // Set value: Use previous value if available, otherwise default (handled in createLanguageDropdown)
-  if (currentTl1Value) {
-    newTl1Select.value = currentTl1Value;
-  }
-  // Update TL1 voice dropdown (existing code)
-  const tl1VoiceSelect = document.getElementById('tl1-voice');
-  if (tl1VoiceSelect && typeof updateVoiceDropdown === 'function') {
-    updateVoiceDropdown(tl1VoiceSelect, newTl1Select.value);
+    // Set value: Use previous value if available, otherwise default (handled in createLanguageDropdown)
+    if (currentTl1Value) {
+      newTl1Select.value = currentTl1Value;
+    }
+    // Update TL1 voice dropdown (existing code)
+    const tl1VoiceSelect = document.getElementById('tl1-voice');
+    if (tl1VoiceSelect && typeof updateVoiceDropdown === 'function') {
+      updateVoiceDropdown(tl1VoiceSelect, newTl1Select.value);
     }
   }
 
@@ -132,21 +171,21 @@ async function rebuildLanguageDropdowns() {
   if (tl2Container) {
     // Only rebuild if visible, but always ensure voice dropdown is correct
     const tl2VoiceSelect = document.getElementById('tl2-voice');
-  if (!tl2Container.classList.contains('hide')) {
-    const newTl2Select = await createLanguageDropdown('tl2');
-    const oldTl2Select = tl2Container.querySelector('select#tl2');
-    if (oldTl2Select) oldTl2Select.replaceWith(newTl2Select); else tl2Container.insertBefore(newTl2Select, tl2Container.querySelector('#tl2-voice'));
-    if (currentTl2Value) newTl2Select.value = currentTl2Value;
-    // Update TL2 voice dropdown
-    const tl2VoiceSelect = document.getElementById('tl2-voice');
-    if (tl2VoiceSelect && typeof updateVoiceDropdown === 'function') {
-      updateVoiceDropdown(tl2VoiceSelect, newTl2Select.value);
-    }
-  } else {
-    // Ensure voice dropdown is cleared if container is hidden
-    const tl2VoiceSelect = document.getElementById('tl2-voice');
-    if (tl2VoiceSelect && typeof updateVoiceDropdown === 'function') {
-      updateVoiceDropdown(tl2VoiceSelect, null); // Pass null to clear
+    if (!tl2Container.classList.contains('hide')) {
+      const newTl2Select = await createLanguageDropdown('tl2');
+      const oldTl2Select = tl2Container.querySelector('select#tl2');
+      if (oldTl2Select) oldTl2Select.replaceWith(newTl2Select); else tl2Container.insertBefore(newTl2Select, tl2Container.querySelector('#tl2-voice'));
+      if (currentTl2Value) newTl2Select.value = currentTl2Value;
+      // Update TL2 voice dropdown
+      const tl2VoiceSelect = document.getElementById('tl2-voice');
+      if (tl2VoiceSelect && typeof updateVoiceDropdown === 'function') {
+        updateVoiceDropdown(tl2VoiceSelect, newTl2Select.value);
+      }
+    } else {
+      // Ensure voice dropdown is cleared if container is hidden
+      const tl2VoiceSelect = document.getElementById('tl2-voice');
+      if (tl2VoiceSelect && typeof updateVoiceDropdown === 'function') {
+        updateVoiceDropdown(tl2VoiceSelect, null); // Pass null to clear
       }
     }
   }
@@ -154,20 +193,20 @@ async function rebuildLanguageDropdowns() {
   // --- Target Language 3 ---
   if (tl3Container) {
     const tl3VoiceSelect = document.getElementById('tl3-voice');
-  if (!tl3Container.classList.contains('hide')) {
-    const newTl3Select = await createLanguageDropdown('tl3');
-    const oldTl3Select = tl3Container.querySelector('select#tl3');
-    if (oldTl3Select) oldTl3Select.replaceWith(newTl3Select); else tl3Container.insertBefore(newTl3Select, tl3Container.querySelector('#tl3-voice'));
-    if (currentTl3Value) newTl3Select.value = currentTl3Value;
-    // Update TL3 voice dropdown
-    const tl3VoiceSelect = document.getElementById('tl3-voice');
-    if (tl3VoiceSelect && typeof updateVoiceDropdown === 'function') {
-      updateVoiceDropdown(tl3VoiceSelect, newTl3Select.value);
-    }
-  } else {
-    const tl3VoiceSelect = document.getElementById('tl3-voice');
-    if (tl3VoiceSelect && typeof updateVoiceDropdown === 'function') {
-      updateVoiceDropdown(tl3VoiceSelect, null);
+    if (!tl3Container.classList.contains('hide')) {
+      const newTl3Select = await createLanguageDropdown('tl3');
+      const oldTl3Select = tl3Container.querySelector('select#tl3');
+      if (oldTl3Select) oldTl3Select.replaceWith(newTl3Select); else tl3Container.insertBefore(newTl3Select, tl3Container.querySelector('#tl3-voice'));
+      if (currentTl3Value) newTl3Select.value = currentTl3Value;
+      // Update TL3 voice dropdown
+      const tl3VoiceSelect = document.getElementById('tl3-voice');
+      if (tl3VoiceSelect && typeof updateVoiceDropdown === 'function') {
+        updateVoiceDropdown(tl3VoiceSelect, newTl3Select.value);
+      }
+    } else {
+      const tl3VoiceSelect = document.getElementById('tl3-voice');
+      if (tl3VoiceSelect && typeof updateVoiceDropdown === 'function') {
+        updateVoiceDropdown(tl3VoiceSelect, null);
       }
     }
   }
@@ -175,31 +214,31 @@ async function rebuildLanguageDropdowns() {
   // --- Target Language 4 ---
   if (tl4Container) {
     const tl4VoiceSelect = document.getElementById('tl4-voice');
-  if (!tl4Container.classList.contains('hide')) {
-    const newTl4Select = await createLanguageDropdown('tl4');
-    const oldTl4Select = tl4Container.querySelector('select#tl4');
-    if (oldTl4Select) oldTl4Select.replaceWith(newTl4Select); else tl4Container.insertBefore(newTl4Select, tl4Container.querySelector('#tl4-voice'));
-    if (currentTl4Value) newTl4Select.value = currentTl4Value;
-    // Update TL4 voice dropdown
-    const tl4VoiceSelect = document.getElementById('tl4-voice');
-    if (tl4VoiceSelect && typeof updateVoiceDropdown === 'function') {
-      updateVoiceDropdown(tl4VoiceSelect, newTl4Select.value);
-    }
-  } else {
-    const tl4VoiceSelect = document.getElementById('tl4-voice');
-    if (tl4VoiceSelect && typeof updateVoiceDropdown === 'function') {
-      updateVoiceDropdown(tl4VoiceSelect, null);
+    if (!tl4Container.classList.contains('hide')) {
+      const newTl4Select = await createLanguageDropdown('tl4');
+      const oldTl4Select = tl4Container.querySelector('select#tl4');
+      if (oldTl4Select) oldTl4Select.replaceWith(newTl4Select); else tl4Container.insertBefore(newTl4Select, tl4Container.querySelector('#tl4-voice'));
+      if (currentTl4Value) newTl4Select.value = currentTl4Value;
+      // Update TL4 voice dropdown
+      const tl4VoiceSelect = document.getElementById('tl4-voice');
+      if (tl4VoiceSelect && typeof updateVoiceDropdown === 'function') {
+        updateVoiceDropdown(tl4VoiceSelect, newTl4Select.value);
+      }
+    } else {
+      const tl4VoiceSelect = document.getElementById('tl4-voice');
+      if (tl4VoiceSelect && typeof updateVoiceDropdown === 'function') {
+        updateVoiceDropdown(tl4VoiceSelect, null);
       }
     }
   }
 
   // --- Update UI language selector ---
   if (uiLangContainer) {
-  const newUiLangSelect = await createLanguageSelector();
-  const oldUiLangSelect = uiLangContainer.querySelector('select#ui-language-selector');
-  if (oldUiLangSelect) oldUiLangSelect.replaceWith(newUiLangSelect); else uiLangContainer.appendChild(newUiLangSelect);
-  // Set the value *after* replacing/appending
-  newUiLangSelect.value = currentLanguage; // Ensure the current UI language is selected
+    const newUiLangSelect = await createLanguageSelector();
+    const oldUiLangSelect = uiLangContainer.querySelector('select#ui-language-selector');
+    if (oldUiLangSelect) oldUiLangSelect.replaceWith(newUiLangSelect); else uiLangContainer.appendChild(newUiLangSelect);
+    // Set the value *after* replacing/appending
+    newUiLangSelect.value = currentLanguage; // Ensure the current UI language is selected
   }
 }
 

@@ -2,6 +2,8 @@
 
 // Depends on:
 // - DOM Elements: #help-title, #help-text, .help-section, #pointstype
+// - Globals: translations, currentLanguage
+// - Functions: formatString (assumed helper)
 
 function showHelp(title, text) {
     const helpTitle = document.getElementById('help-title');
@@ -38,13 +40,19 @@ function handlePointsTypeClickForHelp() {
     if (!pointsTypeElement) return;
 
     const mode = pointsTypeElement.textContent;
-    const helpTexts = {
-        'V1': 'Replaces all periods in the text with the selected character.',
-        'V2': 'Preserves periods at line endings, but replaces all other periods with the selected character.',
-        'V3': 'Preserves periods at line endings, and replaces only periods followed by spaces with the selected character plus a space.'
+    // Use translation keys
+    const helpTextKeys = {
+        'V1': 'helpPeriodReplacementV1',
+        'V2': 'helpPeriodReplacementV2',
+        'V3': 'helpPeriodReplacementV3'
     };
-    // TODO: Consider translating helpTexts if UI translation is extended
-    showHelp('Period Replacement Mode: ' + mode, helpTexts[mode] || 'Click to cycle through modes.');
+    const titleTemplate = translations[currentLanguage]?.helpPeriodReplacementTitle || translations.en.helpPeriodReplacementTitle;
+    const title = formatString(titleTemplate, mode);
+
+    const helpKey = helpTextKeys[mode] || 'helpPeriodReplacementDefault';
+    const helpText = translations[currentLanguage]?.[helpKey] || translations.en[helpKey];
+
+    showHelp(title, helpText);
 }
 
 // Handler for clicking outside the help section

@@ -246,7 +246,8 @@ function convertZipToTxt(zipFile) {
         })
         .catch(function (e) { // Changed from 'err' to 'e' to match usage
             console.error("Error loading or processing ZIP file:", e);
-            alert("Error processing ZIP file. It might be corrupted or contain unsupported file types."); // User feedback
+            const alertMsg = translations[currentLanguage]?.alertZipProcError || translations.en.alertZipProcError;
+            alert(alertMsg); // User feedback
         });
 }
 

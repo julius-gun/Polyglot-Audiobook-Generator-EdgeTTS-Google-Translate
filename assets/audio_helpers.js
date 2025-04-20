@@ -73,7 +73,9 @@ function cleanupTaskInstances(results) {
  */
 async function saveAsZip_Pipeline(successfulResults, baseFilename, statArea = null) {
     // Helper function to update status area safely
-    const updateStatus = (message) => {
+    const updateStatus = (messageKey, ...args) => {
+        const messageTemplate = translations[currentLanguage]?.[messageKey] || translations.en[messageKey] || messageKey;
+        const message = formatString(messageTemplate, ...args);
         if (statArea) {
             // Append message on a new line
             statArea.value += `\n${message}`;
@@ -84,9 +86,9 @@ async function saveAsZip_Pipeline(successfulResults, baseFilename, statArea = nu
 
     // Check for JSZip library
     if (typeof JSZip === 'undefined') {
-        const errorMsg = "Error: JSZip library not found. Cannot create ZIP.";
-        updateStatus(errorMsg);
-        alert(errorMsg + " Please ensure the library is loaded."); // User feedback
+        const errorMsgKey = "alertJszipNotFound";
+        updateStatus(errorMsgKey);
+        alert(translations[currentLanguage]?.[errorMsgKey] || translations.en[errorMsgKey]); // User feedback
         // Clean up instances as we cannot proceed
         cleanupTaskInstances(successfulResults);
         return;
@@ -96,7 +98,7 @@ async function saveAsZip_Pipeline(successfulResults, baseFilename, statArea = nu
     let zipCount = 0;
     const totalFiles = successfulResults.length;
 
-    updateStatus(`Creating ZIP archive for ${totalFiles} files...`);
+    updateStatus("statusGeneratingZip", `${baseFilename}_${totalFiles}-parts.zip`, totalFiles); // Use key
 
     // Sort results by indexpart to ensure correct order in the ZIP file (optional but good practice)
     successfulResults.sort((a, b) => a.indexpart - b.indexpart);
@@ -105,7 +107,7 @@ async function saveAsZip_Pipeline(successfulResults, baseFilename, statArea = nu
         // Double-check instance validity (though input should be pre-filtered)
         if (instance && instance.my_uint8Array && instance.my_uint8Array.length > 0 && instance.my_filenum) {
             const filename = `${baseFilename}_part_${instance.my_filenum}.mp3`;
-            instance.update_stat("Adding to ZIP..."); // Update individual part status
+            instance.update_stat("statusAddingToZip"); // Update individual part status using key
             zip.file(filename, instance.my_uint8Array, { binary: true });
             zipCount++;
             await sleep(2); // Tiny sleep to allow UI updates during loop
@@ -116,7 +118,7 @@ async function saveAsZip_Pipeline(successfulResults, baseFilename, statArea = nu
 
     if (zipCount > 0) {
         const zipFilename = `${baseFilename}_${zipCount}-parts.zip`;
-        updateStatus(`Generating ZIP file: ${zipFilename} (Compressing ${zipCount} files)...`);
+        updateStatus("statusGeneratingZip", zipFilename, zipCount); // Use key
 
         try {
             // Generate the ZIP file blob
@@ -136,25 +138,26 @@ async function saveAsZip_Pipeline(successfulResults, baseFilename, statArea = nu
 
             // Initiate download using FileSaver.js
             saveAs(zipBlob, zipFilename);
-            updateStatus(`ZIP file download started: ${zipFilename}`);
+            updateStatus("statusZipDownloadStarted", zipFilename); // Use key
 
             // Update status for all included instances AFTER saveAs is called
             for (const instance of successfulResults) {
                 if (instance && typeof instance.update_stat === 'function') {
-                    instance.update_stat("Saved in ZIP");
+                    instance.update_stat("statusSavedInZip"); // Use key
                 }
             }
 
         } catch (e) {
-            const errorMsg = `Error generating or saving ZIP file: ${e.message}`;
-            updateStatus(errorMsg);
+            const errorMsgKey = "alertZipError";
+            const errorMsg = formatString(translations[currentLanguage]?.[errorMsgKey] || translations.en[errorMsgKey], e.message);
+            updateStatus(errorMsg); // Pass the formatted message directly
             console.error(errorMsg, e);
             alert(errorMsg); // User feedback
 
             // Update status for instances to show error
             for (const instance of successfulResults) {
                  if (instance && typeof instance.update_stat === 'function') {
-                    instance.update_stat("ZIP Creation Failed");
+                    instance.update_stat("statusZipCreationFailed"); // Use key
                  }
             }
         } finally {
@@ -165,7 +168,7 @@ async function saveAsZip_Pipeline(successfulResults, baseFilename, statArea = nu
         }
 
     } else {
-        updateStatus("No valid files were added to the ZIP archive.");
+        updateStatus("alertNoFilesAddedToZip"); // Use key
         // Clean up instances even if none were added (shouldn't happen if successfulResults > 0 initially)
         cleanupTaskInstances(successfulResults);
     }

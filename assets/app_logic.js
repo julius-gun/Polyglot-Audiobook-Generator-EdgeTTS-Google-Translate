@@ -17,8 +17,8 @@ async function handleGenerateButtonClick() {
     const sourceText = document.getElementById('source-text').value;
 
     if (!sourceText || sourceText.trim() === "") {
-        // Consider using a translated alert from ui_translations.js
-        alert("Please enter some source text before generating.");
+        // Use translated alert
+        alert(translations[currentLanguage]?.alertEnterSourceText || translations.en.alertEnterSourceText);
         return;
     }
 

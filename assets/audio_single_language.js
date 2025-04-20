@@ -6,11 +6,13 @@
 //   - formatTime (ui_helpers.js)
 //   - saveAs (FileSaver.js - loaded globally)
 //   - saveAsZip_Pipeline, cleanupTaskInstances (audio_helpers.js) // <-- Added dependencies
+//   - formatString (assumed helper)
 // - Classes: AudioPipelineManager (audio_pipeline.js)
 // - UI Elements: source-text, sl-voice, sl-rate, sl-pitch, max-threads, mergefiles,
 //                stat-area, progress-container, progress-bar, progress-info,
 //                output, open-book-view-button, save-epub-button, translation-finished-message,
 //                reload-page-button, advanced-audio-settings
+// - Globals: translations, currentLanguage
 
 // --- Configuration ---
 const TARGET_CHUNK_LENGTH = 3200; // Target character length for audio chunks
@@ -85,7 +87,7 @@ async function generateSingleLanguageAudiobook() {
     // 2. Get and validate source text
     const sourceText = sourceTextArea?.value;
     if (!sourceText || sourceText.trim() === "") {
-        alert("Please enter some source text before generating audio."); // TODO: Use translated alert
+        alert(translations[currentLanguage]?.alertEnterSourceText || translations.en.alertEnterSourceText); // Use translated alert
         console.log("--- generateSingleLanguageAudiobook END (No source text) ---");
         return;
     }
@@ -98,7 +100,7 @@ async function generateSingleLanguageAudiobook() {
     const mergeValue = parseInt(mergeSlider?.value || '100', 10); // 100 means ALL
 
     if (!voice) {
-        alert("Please select a source language voice."); // TODO: Use translated alert
+        alert(translations[currentLanguage]?.alertSelectVoice || translations.en.alertSelectVoice); // Use translated alert
         console.log("--- generateSingleLanguageAudiobook END (No voice selected) ---");
         return;
     }
@@ -135,7 +137,10 @@ async function generateSingleLanguageAudiobook() {
     }
     if (progressInfo) {
         progressInfo.style.display = 'block';
-        progressInfo.innerHTML = `<span>Processed: 0 / 0</span> | <span>ETA: Calculating...</span>`; // TODO: Translate
+        const processedText = translations[currentLanguage]?.statusProcessed || translations.en.statusProcessed;
+        const etaText = translations[currentLanguage]?.eta || translations.en.eta;
+        const calculatingText = translations[currentLanguage]?.statusCalculating || translations.en.statusCalculating;
+        progressInfo.innerHTML = `<span>${processedText}: 0 / 0</span> | <span>${etaText}: ${calculatingText}</span>`;
     }
 
     // Hide bilingual-specific buttons/messages
@@ -148,7 +153,7 @@ async function generateSingleLanguageAudiobook() {
     const audioChunks = chunkTextForAudio(sourceText, TARGET_CHUNK_LENGTH);
 
     if (audioChunks.length === 0) {
-        alert("Could not split the text into processable chunks."); // TODO: Translate
+        alert(translations[currentLanguage]?.alertCouldNotSplit || translations.en.alertCouldNotSplit); // Use translated alert
         resetSingleLanguageUI(); // Clean up UI
         console.log("--- generateSingleLanguageAudiobook END (No chunks) ---");
         return;
@@ -156,8 +161,10 @@ async function generateSingleLanguageAudiobook() {
 
     // Update progress total immediately
     if (progressInfo) {
-        // TODO: Translate "Processed", "ETA", "Calculating..."
-        progressInfo.innerHTML = `<span>Processed: 0 / ${audioChunks.length}</span> | <span>ETA: Calculating...</span>`;
+        const processedText = translations[currentLanguage]?.statusProcessed || translations.en.statusProcessed;
+        const etaText = translations[currentLanguage]?.eta || translations.en.eta;
+        const calculatingText = translations[currentLanguage]?.statusCalculating || translations.en.statusCalculating;
+        progressInfo.innerHTML = `<span>${processedText}: 0 / ${audioChunks.length}</span> | <span>${etaText}: ${calculatingText}</span>`;
     }
 
     // 7. Configure and Start the Pipeline
@@ -187,7 +194,8 @@ async function generateSingleLanguageAudiobook() {
         console.log("--- generateSingleLanguageAudiobook END (Pipeline Started) ---");
     } catch (error) {
         console.error("Failed to create or start AudioPipelineManager:", error);
-        handlePipelineError(`Failed to initialize audio pipeline: ${error.message}`);
+        const errorMsgTemplate = translations[currentLanguage]?.alertPipelineError || translations.en.alertPipelineError;
+        handlePipelineError(formatString(errorMsgTemplate, error.message)); // Pass formatted, translated message
         resetSingleLanguageUI(); // Clean up UI on critical init error
     }
 }
@@ -219,15 +227,19 @@ function handlePipelineProgress(progressData) {
 
     if (progressInfo) {
         // formatTime is defined in ui_helpers.js
+        const calculatingText = translations[currentLanguage]?.statusCalculating || translations.en.statusCalculating;
         const etaString = (etaSeconds === null || !isFinite(etaSeconds))
-            ? 'Calculating...' // TODO: Translate
+            ? calculatingText
             : formatTime(etaSeconds * 1000);
 
-        // TODO: Translate "Processed", "Failed", "ETA"
+        const processedText = translations[currentLanguage]?.statusProcessed || translations.en.statusProcessed;
+        const failedText = translations[currentLanguage]?.statusFailedLabel || translations.en.statusFailedLabel;
+        const etaText = translations[currentLanguage]?.eta || translations.en.eta;
+
         progressInfo.innerHTML = `
-            <span>Processed: ${processed} / ${total}</span> |
-            ${failed > 0 ? `<span>Failed: ${failed}</span> |` : ''}
-            <span>ETA: ${etaString}</span>
+            <span>${processedText}: ${processed} / ${total}</span> |
+            ${failed > 0 ? `<span>${failedText} ${failed}</span> |` : ''}
+            <span>${etaText}: ${etaString}</span>
         `;
     }
 }
@@ -250,10 +262,13 @@ function handlePipelineComplete(completionData) {
 
     // --- Check for Failures ---
     if (failed > 0) {
-        console.error(`Audio generation failed: ${failed} part(s) could not be created after retries.`);
-        let finalMessage = `\n--- Audio Generation FAILED ---`; // TODO: Translate
-        finalMessage += `\n${failed} part(s) failed after retries.`;
-        finalMessage += `\nNo output file was generated. Please check the errors above.`;
+        const alertMsgTemplate = translations[currentLanguage]?.alertAudioGenerationFailed || translations.en.alertAudioGenerationFailed;
+        console.error(formatString(alertMsgTemplate, failed));
+
+        let finalMessage = `\n${translations[currentLanguage]?.audioGenFailedMessage || translations.en.audioGenFailedMessage}`;
+        const detailsTemplate = translations[currentLanguage]?.audioGenFailedDetails || translations.en.audioGenFailedDetails;
+        finalMessage += `\n${formatString(detailsTemplate, failed)}`;
+        finalMessage += `\n${translations[currentLanguage]?.audioGenFailedNoOutput || translations.en.audioGenFailedNoOutput}`;
         finalMessage += "\n---";
 
         if (statArea) {
@@ -261,17 +276,19 @@ function handlePipelineComplete(completionData) {
             statArea.scrollTop = statArea.scrollHeight; // Scroll to bottom
         }
         if (progressInfo) {
-            // TODO: Translate "Failed!"
+            const processedText = translations[currentLanguage]?.statusProcessed || translations.en.statusProcessed;
+            const failedText = translations[currentLanguage]?.statusFailedLabel || translations.en.statusFailedLabel;
+            const failedExclaimText = translations[currentLanguage]?.statusFailedExclaim || translations.en.statusFailedExclaim;
             progressInfo.innerHTML = `
-                <span>Processed: ${processed} / ${total}</span> |
-                <span style="color: red;">Failed: ${failed}</span> |
-                <span style="color: red;">Failed!</span>
+                <span>${processedText}: ${processed} / ${total}</span> |
+                <span style="color: red;">${failedText} ${failed}</span> |
+                <span style="color: red;">${failedExclaimText}</span>
             `;
         }
         if (progressBar) {
-            // Optionally indicate failure state on progress bar
+            const failedProgressTemplate = translations[currentLanguage]?.statusFailedProgress || translations.en.statusFailedProgress;
             progressBar.style.backgroundColor = '#dc3545'; // Red color for failure
-            progressBar.textContent = `Failed (${failed}/${total})`; // TODO: Translate
+            progressBar.textContent = formatString(failedProgressTemplate, failed, total);
         }
 
         // Clean up all instances (failed and potentially successful ones)
@@ -284,9 +301,9 @@ function handlePipelineComplete(completionData) {
     }
 
     // --- Handle Success ---
-    // This part only runs if failed === 0
-    let finalMessage = "\n--- Audio Generation Finished Successfully ---"; // TODO: Translate
-    finalMessage += ` (${processed}/${total} parts created)`;
+    let finalMessage = `\n${translations[currentLanguage]?.audioGenSuccessMessage || translations.en.audioGenSuccessMessage}`;
+    const successDetailsTemplate = translations[currentLanguage]?.audioGenSuccessDetails || translations.en.audioGenSuccessDetails;
+    finalMessage += formatString(successDetailsTemplate, processed, total);
     finalMessage += " ---";
 
     if (statArea) {
@@ -294,10 +311,11 @@ function handlePipelineComplete(completionData) {
         statArea.scrollTop = statArea.scrollHeight; // Scroll to bottom
     }
     if (progressInfo) {
-        // TODO: Translate "Finished!"
+        const processedText = translations[currentLanguage]?.statusProcessed || translations.en.statusProcessed;
+        const finishedExclaimText = translations[currentLanguage]?.statusFinishedExclaim || translations.en.statusFinishedExclaim;
         progressInfo.innerHTML = `
-            <span>Processed: ${processed} / ${total}</span> |
-            <span>Finished!</span>
+            <span>${processedText}: ${processed} / ${total}</span> |
+            <span>${finishedExclaimText}</span>
         `;
     }
     if (progressBar) {
@@ -337,20 +355,21 @@ function handlePipelineError(errorMessage) {
     const progressInfo = document.getElementById('progress-info');
     const progressBar = document.getElementById('progress-bar');
 
-    const errorText = `\n--- PIPELINE ERROR: ${errorMessage} ---`; // TODO: Translate
+    const errorText = `\n${errorMessage}`; // Use the passed message
 
     if (statArea) {
         statArea.value += errorText;
         statArea.scrollTop = statArea.scrollHeight;
     }
     if (progressInfo) {
-        progressInfo.innerHTML += ` | <span style="color: red;">Pipeline Error!</span>`; // TODO: Translate
+        const pipelineErrorLabel = translations[currentLanguage]?.pipelineErrorLabel || translations.en.pipelineErrorLabel;
+        progressInfo.innerHTML += ` | <span style="color: red;">${pipelineErrorLabel}</span>`;
     }
     if (progressBar) {
         progressBar.style.backgroundColor = '#dc3545'; // Red color for failure
-        progressBar.textContent = 'Error'; // TODO: Translate
+        progressBar.textContent = translations[currentLanguage]?.statusError || translations.en.statusError;
     }
-    alert(`Audio generation failed: ${errorMessage}`); // TODO: Translate
+    alert(errorMessage); // Show the translated error message
 
     // Pipeline might be in an inconsistent state, clear the reference
     // No results array to clean up here as the pipeline likely didn't even start properly
@@ -484,16 +503,16 @@ async function saveIndividualFiles_Pipeline(successfulResults, baseFilename) {
             const audioBlob = new Blob([instance.my_uint8Array.buffer], { type: 'audio/mpeg' });
             const filename = `${baseFilename}_part_${instance.my_filenum}.mp3`;
             console.log(`Saving individual file: ${filename}`);
-            instance.update_stat("Saving..."); // Update status before saveAs
+            instance.update_stat("statusSaving"); // Update status before saveAs using key
 
             try {
                 saveAs(audioBlob, filename); // FileSaver.js
-                instance.update_stat("Download Started");
+                instance.update_stat("statusDownloadStarted"); // Use key
                 savedCount++;
                 await sleep(50); // Small delay between downloads might help slightly, but ZIP is better
             } catch (e) {
                 console.error(`Error initiating download for ${filename}:`, e);
-                instance.update_stat("Error Downloading");
+                instance.update_stat("statusErrorDownloading"); // Use key
             }
             // NOTE: Cleanup happens *after* the loop now
         } else {
@@ -545,7 +564,7 @@ async function doMerge_Pipeline(successfulResults, baseFilename, chunkSize) {
             if (instance && instance.my_uint8Array && instance.my_uint8Array.length > 0) {
                 partsInChunk.push(instance.my_uint8Array);
                 combinedLength += instance.my_uint8Array.length;
-                instance.update_stat("Merging..."); // Update status
+                instance.update_stat("statusMerging"); // Update status using key
             } else {
                 console.warn(`Skipping invalid instance during merge: Index ${instance?.indexpart}`);
             }
@@ -574,7 +593,7 @@ async function doMerge_Pipeline(successfulResults, baseFilename, chunkSize) {
             // Update status for successfully merged instances in this chunk
             for (const instance of chunkInstances) {
                 if (instance && typeof instance.update_stat === 'function') {
-                    instance.update_stat("Merged & Saved");
+                    instance.update_stat("statusMergedAndSaved"); // Use key
                 }
             }
             await sleep(25); // Small delay after saving chunk
@@ -625,7 +644,8 @@ async function saveMerge_Pipeline(combinedData, mergeNum, baseFilename, isSingle
         // Status updates for individual parts were done in doMerge_Pipeline
     } catch (e) {
         console.error(`Error initiating download for merged file ${filename}:`, e);
-        alert(`Error saving merged file ${filename}. See console for details.`);
+        const alertMsgTemplate = translations[currentLanguage]?.alertSaveMergedError || translations.en.alertSaveMergedError;
+        alert(formatString(alertMsgTemplate, filename));
         // Re-throw the error so the caller (doMerge_Pipeline) can potentially handle it? Or just log here.
         // throw e; // Optional: re-throw
     }

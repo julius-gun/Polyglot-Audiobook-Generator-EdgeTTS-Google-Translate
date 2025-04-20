@@ -29,9 +29,12 @@ function formatTime(milliseconds) {
     return timeString.trim();
   }
   
-  function openBookView() {
+  async function openBookView() {
     const outputContent = document.getElementById('output').innerHTML;
     const themeClass = document.body.className; // Get current theme class (e.g., 'bw')
+
+    // Get translated title (This line uses await)
+    const windowTitle = await fetchTranslation(translations.en.bookViewWindowTitle, currentLanguage);
   
     // Define specific CSS for the book view window
     const bookViewStyles = `
@@ -117,7 +120,7 @@ function formatTime(milliseconds) {
           <head>
             <meta charset="UTF-8">
             <meta name="viewport" content="width=device-width, initial-scale=1.0">
-            <title>Book View</title> <!-- Added Title -->
+            <title>${windowTitle}</title> <!-- Use translated title -->
             <style>
               ${bookViewStyles}
             </style>
@@ -129,9 +132,8 @@ function formatTime(milliseconds) {
         `);
       bookViewWindow.document.close();
     } else {
-      // Use the translation system for the alert if possible, otherwise fallback
-      // Accesses global 'translations' and 'currentLanguage'
-      const alertMsg = translations[currentLanguage]?.popupBlocked || translations['en'].popupBlocked || 'Could not open book view window. Please check your popup blocker settings.';
+      // Use the translation system for the alert
+      const alertMsg = await fetchTranslation(translations.en.alertPopupBlocked, currentLanguage);
       alert(alertMsg);
     }
   }

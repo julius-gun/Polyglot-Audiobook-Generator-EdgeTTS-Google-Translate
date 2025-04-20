@@ -81,7 +81,14 @@ document.addEventListener('DOMContentLoaded', async () => {
   document.querySelectorAll('.rate-slider, .pitch-slider, .max-threads, .mergefiles').forEach(slider => {
     // Check if the slider exists before trying to trigger the handler
     if (slider && typeof handleSliderChange === 'function') {
+      // Find the associated value span and trigger the handler
+      const parent = slider.closest('.slider-container') || slider.parentElement; // Find parent container
+      const valueSpan = parent?.querySelector('.rate-value, .pitch-value, .threads-value, .merge-value');
+      if (valueSpan) {
       handleSliderChange({ target: slider }); // Trigger update using the handler
+      } else {
+          console.warn("Could not find value span for slider:", slider.id);
+      }
     }
   });
 

@@ -138,14 +138,14 @@ function getFlagEmoji(countryCode) {
 }
 
 // Function to update a specific voice dropdown based on the selected language
-function updateVoiceDropdown(dropdownElement, selectedLanguageCode) {
+async function updateVoiceDropdown(dropdownElement, selectedLanguageCode) { // Make async
     if (!dropdownElement) {
         console.error("Target dropdown element not provided for voice update.");
         return;
     }
     if (typeof voicesData === 'undefined' || !Array.isArray(voicesData)) { // Added check for array
         console.error("voicesData is not defined or not an array. Make sure voices-data.js is loaded correctly.");
-        dropdownElement.innerHTML = '<option disabled>Error: Voice data not loaded.</option>';
+        dropdownElement.innerHTML = `<option disabled>${translations[currentLanguage]?.voiceErrorLoading || translations.en.voiceErrorLoading}</option>`;
         return;
     }
 
@@ -177,10 +177,10 @@ function updateVoiceDropdown(dropdownElement, selectedLanguageCode) {
         const option = document.createElement('option');
         // Provide a more informative message based on the selection
         if (!selectedLanguageCode) {
-            option.textContent = `Select a language first`;
+            option.textContent = translations[currentLanguage]?.voiceSelectLanguage || translations.en.voiceSelectLanguage;
         } else {
             // This should only happen if voicesData itself is empty
-            option.textContent = `No voices available at all`;
+            option.textContent = translations[currentLanguage]?.voiceNoneAvailable || translations.en.voiceNoneAvailable;
         }
         option.disabled = true;
         dropdownElement.appendChild(option);
@@ -190,8 +190,10 @@ function updateVoiceDropdown(dropdownElement, selectedLanguageCode) {
     // 5. Add Multilingual Optgroup (if any)
     if (multilingualVoices.length > 0) {
         const multiOptgroup = document.createElement('optgroup');
-        // Add a hint if showing fallback voices
-        multiOptgroup.label = showingFallbackVoices ? "--- Multilingual (Fallback) ---" : "--- Multilingual ---";
+        // Translate label and add hint if showing fallback voices
+        const multiLabelText = await fetchTranslation(translations.en.multilingualLabel, currentLanguage);
+        const fallbackHintText = showingFallbackVoices ? ` ${translations[currentLanguage]?.voiceFallbackHint || translations.en.voiceFallbackHint}` : "";
+        multiOptgroup.label = `${multiLabelText}${fallbackHintText}`;
         multilingualVoices.forEach(voice => {
             const option = document.createElement('option');
             option.value = voice.value;
@@ -212,10 +214,12 @@ function updateVoiceDropdown(dropdownElement, selectedLanguageCode) {
         // Only add the optgroup if there are non-multilingual voices for this language
         if (languageVoices.length > 0) {
         const optgroup = document.createElement('optgroup');
-            // Add a hint if showing fallback voices and this isn't the multilingual group
-            const separator = (multilingualVoices.length > 0 || showingFallbackVoices) ? "--- " : "";
-            const fallbackHint = showingFallbackVoices ? " (Fallback)" : "";
-            optgroup.label = `${separator}${languageNames[languageCode] || languageCode.toUpperCase()}${fallbackHint}`;
+            // Translate fallback hint if needed
+            const fallbackHintText = showingFallbackVoices ? ` ${translations[currentLanguage]?.voiceFallbackHint || translations.en.voiceFallbackHint}` : "";
+            // Use languageNames map (assumed global or accessible) for the language name
+            const langName = languageNames[languageCode] || languageCode.toUpperCase(); // Fallback to code if name not found
+            const separator = (multilingualVoices.length > 0 || showingFallbackVoices) ? "--- " : ""; // Keep separator logic
+            optgroup.label = `${separator}${langName}${fallbackHintText}`;
         dropdownElement.appendChild(optgroup);
 
         // Voices within the group are already sorted by groupVoicesByLanguage

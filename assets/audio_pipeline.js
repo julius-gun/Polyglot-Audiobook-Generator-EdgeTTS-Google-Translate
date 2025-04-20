@@ -3,6 +3,8 @@
 // Depends on:
 // - createAndRunAudioTask (audio_helpers.js)
 // - formatTime (ui_helpers.js) - For ETA calculation
+// - formatString (assumed helper)
+// - Globals: translations, currentLanguage
 
 const PipelineStatus = {
     IDLE: 'Idle',
@@ -112,12 +114,14 @@ class AudioPipelineManager {
     }
 
     /** Updates the status line for a specific task */
-    _updateTaskStatus(index, message) {
+    _updateTaskStatus(index, messageKeyOrText) { // Accept key or direct text
         if (this.statArea && this.statArea.style.display !== 'none') {
             requestAnimationFrame(() => {
                 try {
                     let statlines = this.statArea.value.split('\n');
                     const lineIndex = index; // Assuming index corresponds to line number
+                    // Translate if it's a key, otherwise use the text directly
+                    const message = translations[currentLanguage]?.[messageKeyOrText] || translations.en[messageKeyOrText] || messageKeyOrText;
                     const lineContent = `Part ${(index + 1).toString().padStart(4, '0')}: ${message}`;
 
                     if (lineIndex >= 0 && lineIndex < statlines.length) {
@@ -160,7 +164,7 @@ class AudioPipelineManager {
         const fileNum = (index + 1).toString().padStart(4, '0');
 
         console.log(`Pipeline: Queueing task ${index + 1}/${this.totalTasks}`);
-        this._updateTaskStatus(index, "Queued"); // Update status immediately
+        this._updateTaskStatus(index, "statusQueued"); // Update status immediately using key
 
         // Increment *before* async operation
         this.nextTaskIndex++;
@@ -276,8 +280,11 @@ class AudioPipelineManager {
         // Check if all tasks are accounted for AND no tasks are currently active
         if (completedCount === this.totalTasks && this.activeTaskCount === 0) {
             const finalStatus = this.failedCount > 0 ? PipelineStatus.ERROR : PipelineStatus.COMPLETED;
-            console.log(`Pipeline: All tasks finished. Status: ${finalStatus}. Success: ${this.processedCount}, Failed: ${this.failedCount}`);
-            this.status = finalStatus;
+            // Translate the status for logging
+            const finalStatusKey = finalStatus === PipelineStatus.ERROR ? 'statusError' : 'statusCompleted';
+            const translatedFinalStatus = translations[currentLanguage]?.[finalStatusKey] || translations.en[finalStatusKey] || finalStatus;
+            console.log(`Pipeline: All tasks finished. Status: ${translatedFinalStatus}. Success: ${this.processedCount}, Failed: ${this.failedCount}`);
+            this.status = finalStatus; // Keep internal status as English key
 
             if (this.onComplete) {
                 this.onComplete({
@@ -329,7 +336,7 @@ class AudioPipelineManager {
         if (this.statArea) {
             this.statArea.value = ""; // Clear previous run
             for (let i = 0; i < this.totalTasks; i++) {
-                this._updateTaskStatus(i, "Pending");
+                this._updateTaskStatus(i, "statusPending"); // Use key
             }
             this.statArea.scrollTop = 0; // Scroll to top
         }
