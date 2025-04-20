@@ -84,9 +84,8 @@ function translateUIElements() {
         if (key === 'settingsButtonTitle') {
           translatedText = getTranslation('titleSettingsButton');
           element.title = translatedText;
-        // **** START CHANGE ****
-        } else if (key === 'enterText' || key === 'placeholderStatArea') { // Use correct key 'placeholderStatArea'
-          translatedText = getTranslation(key);
+        } else if (key === 'enterText' || key === 'statAreaPlaceholder') { // Use correct key 'statAreaPlaceholder'
+          translatedText = getTranslation(key === 'enterText' ? 'enterText' : 'placeholderStatArea'); // Map key correctly
           element.placeholder = translatedText;
         } else if (key === 'progressTranslatedLabel') {
           translatedText = getTranslation('translated');

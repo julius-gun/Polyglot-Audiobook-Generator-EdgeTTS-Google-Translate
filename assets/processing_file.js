@@ -2,7 +2,8 @@
 	constructor(_file_name, _text, _FIRST_STRINGS_LENGTH, _LAST_STRINGS_LENGTH) {
 		this.file_names = []
 		// Use translated default name if _file_name is null/empty, otherwise use provided name
-		const defaultName = translations[currentLanguage]?.processingFileDefaultName || translations.en.processingFileDefaultName || 'Book';
+		// Use fetchTranslation here
+		const defaultName = fetchTranslation('processingFileDefaultName', currentLanguage);
 		this.file_names.push([_file_name || defaultName, 0])
 		this.FIRST_STRINGS_LENGTH = _FIRST_STRINGS_LENGTH;
 		this.LAST_STRINGS_LENGTH = _LAST_STRINGS_LENGTH;
@@ -94,7 +95,8 @@
 	clear() {
 		this.file_names.length = 0
 		this.file_names = []
-		const defaultName = translations[currentLanguage]?.processingFileDefaultName || translations.en.processingFileDefaultName || 'Book';
+		// Use fetchTranslation here
+		const defaultName = fetchTranslation('processingFileDefaultName', currentLanguage);
 		this.file_names.push([defaultName, 0]) // Use translated default name on clear
 		this.full_text = ""
 		this.pre_sentences.length = 0

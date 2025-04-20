@@ -2,7 +2,7 @@
 
 // Depends on:
 // - Globals: currentLanguage (main.js), translations (ui_translations.js)
-// - Functions: formatTime (ui_helpers.js)
+// - Functions: formatTime (ui_helpers.js), fetchTranslation (translation_api.js) // Added dependency
 
 function updateProgress(translated, total, startTime) {
     const progressBar = document.getElementById('progress-bar');
@@ -22,11 +22,10 @@ function updateProgress(translated, total, startTime) {
     const estimatedTotalTime = (translated === 0 || total === 0) ? 0 : (elapsedTime * (total / translated)); // Avoid division by zero
     const estimatedTimeRemaining = Math.max(0, estimatedTotalTime - elapsedTime); // Prevent negative time
   
-    // Defensive check: Ensure translations[currentLanguage] exists before accessing properties
-    const currentLangTranslations = translations[currentLanguage] || translations['en']; // Fallback to English if not loaded
-      const translatedText = currentLangTranslations.translated || 'Translated'; // Fallback text
-      const etaText = currentLangTranslations.eta || 'ETA'; // Fallback text
-    const calculatingText = currentLangTranslations.calculating || 'Calculating...'; // Add fallback
+    // Use fetchTranslation for labels
+    const translatedText = fetchTranslation('translated', currentLanguage);
+    const etaText = fetchTranslation('eta', currentLanguage);
+    const calculatingText = fetchTranslation('statusCalculating', currentLanguage);
   
       // formatTime is defined in ui_helpers.js
     const etaString = (translated === 0 || total === 0 || !isFinite(estimatedTimeRemaining)) ? calculatingText : formatTime(estimatedTimeRemaining);

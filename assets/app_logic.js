@@ -10,6 +10,7 @@
 //   - add_edge_tts (will likely be needed for generateSingleLanguageAudiobook, defined in script.js originally, needs integration)
 //   - ProcessingFile (processing_file.js - needed for generateSingleLanguageAudiobook)
 //   - SocketEdgeTTS (socket_edge_tts.js - needed for generateSingleLanguageAudiobook)
+//   - fetchTranslation (translation_api.js) // Added dependency
 
 // Handler function to decide which generation process to start
 async function handleGenerateButtonClick() {
@@ -17,8 +18,8 @@ async function handleGenerateButtonClick() {
     const sourceText = document.getElementById('source-text').value;
 
     if (!sourceText || sourceText.trim() === "") {
-        // Use translated alert
-        alert(translations[currentLanguage]?.alertEnterSourceText || translations.en.alertEnterSourceText);
+        // Use translated alert via fetchTranslation
+        alert(fetchTranslation('alertEnterSourceText', currentLanguage));
         return;
     }
 

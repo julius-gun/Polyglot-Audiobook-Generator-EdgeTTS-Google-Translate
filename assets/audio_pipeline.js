@@ -5,6 +5,7 @@
 // - formatTime (ui_helpers.js) - For ETA calculation
 // - formatString (assumed helper)
 // - Globals: translations, currentLanguage
+// - Functions: fetchTranslation (translation_api.js) // Added dependency
 
 const PipelineStatus = {
     IDLE: 'Idle',
@@ -121,7 +122,8 @@ class AudioPipelineManager {
                     let statlines = this.statArea.value.split('\n');
                     const lineIndex = index; // Assuming index corresponds to line number
                     // Translate if it's a key, otherwise use the text directly
-                    const message = translations[currentLanguage]?.[messageKeyOrText] || translations.en[messageKeyOrText] || messageKeyOrText;
+                    // Use fetchTranslation here
+                    const message = fetchTranslation(messageKeyOrText, currentLanguage);
                     const lineContent = `Part ${(index + 1).toString().padStart(4, '0')}: ${message}`;
 
                     if (lineIndex >= 0 && lineIndex < statlines.length) {
@@ -280,9 +282,9 @@ class AudioPipelineManager {
         // Check if all tasks are accounted for AND no tasks are currently active
         if (completedCount === this.totalTasks && this.activeTaskCount === 0) {
             const finalStatus = this.failedCount > 0 ? PipelineStatus.ERROR : PipelineStatus.COMPLETED;
-            // Translate the status for logging
+            // Translate the status for logging using fetchTranslation
             const finalStatusKey = finalStatus === PipelineStatus.ERROR ? 'statusError' : 'statusCompleted';
-            const translatedFinalStatus = translations[currentLanguage]?.[finalStatusKey] || translations.en[finalStatusKey] || finalStatus;
+            const translatedFinalStatus = fetchTranslation(finalStatusKey, currentLanguage);
             console.log(`Pipeline: All tasks finished. Status: ${translatedFinalStatus}. Success: ${this.processedCount}, Failed: ${this.failedCount}`);
             this.status = finalStatus; // Keep internal status as English key
 

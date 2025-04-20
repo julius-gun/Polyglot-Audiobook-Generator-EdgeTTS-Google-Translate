@@ -10,6 +10,7 @@
 //   - insertTextIntoSourceArea, convertFb2ToTxt, convertEpubToTxt, convertZipToTxt (texts_converter.js)
 //   - toggleAdvancedSettingsVisibility, saveSettings (settings.js) // Added dependencies
 //   - attachHelpListeners (help_system.js) // Added dependency
+//   - fetchTranslation (translation_api.js) // Added dependency
 
 // Helper function to attach event listeners
 function attachEventListeners() {
@@ -207,9 +208,9 @@ function handleSliderChange(event) {
     textContent = `${value}`; // Display integer value
   } else if (slider.classList.contains('mergefiles')) {
     valueSpan = parent.querySelector('.merge-value');
-    // Translate "ALL" and "pcs."
-    const allText = translations[currentLanguage]?.textAll || translations.en.textAll;
-    const pcsText = translations[currentLanguage]?.textPieces || translations.en.textPieces;
+    // Translate "ALL" and "pcs." using fetchTranslation
+    const allText = fetchTranslation('textAll', currentLanguage);
+    const pcsText = fetchTranslation('textPieces', currentLanguage);
     textContent = value == 100 ? allText : `${value} ${pcsText}`;
   }
 
@@ -222,7 +223,7 @@ function handleSliderChange(event) {
 
 // Handler for file input changes (MOVED FROM texts_converter.js)
 // Depends on: insertTextIntoSourceArea, convertFb2ToTxt, convertEpubToTxt, convertZipToTxt (from texts_converter.js)
-// Depends on: formatString (assumed helper), translations, currentLanguage
+// Depends on: formatString (assumed helper), translations, currentLanguage, fetchTranslation
 async function handleFileInsert(event) { // Made async to handle await for EPUB/ZIP
   const files = event.target.files;
   if (!files || files.length === 0) {
@@ -261,7 +262,8 @@ async function handleFileInsert(event) { // Made async to handle await for EPUB/
                     };
                     reader.onerror = (e) => {
                         console.error(`Error reading file ${file.name}:`, e);
-                        const alertMsgTemplate = translations[currentLanguage]?.alertFileReadError || translations.en.alertFileReadError;
+                        // Use fetchTranslation for template
+                        const alertMsgTemplate = fetchTranslation('alertFileReadError', currentLanguage);
                         alert(formatString(alertMsgTemplate, file.name)); // Basic error feedback
                         reject(e);
                     };
@@ -280,14 +282,16 @@ async function handleFileInsert(event) { // Made async to handle await for EPUB/
                             resolve();
                         } catch (error) {
                             console.error(`Error converting FB2 ${file.name}:`, error);
-                            const alertMsgTemplate = translations[currentLanguage]?.alertFb2Error || translations.en.alertFb2Error;
+                            // Use fetchTranslation for template
+                            const alertMsgTemplate = fetchTranslation('alertFb2Error', currentLanguage);
                             alert(formatString(alertMsgTemplate, file.name));
                             reject(error);
                         }
                     };
                     reader.onerror = (e) => {
                         console.error(`Error reading file ${file.name}:`, e);
-                        const alertMsgTemplate = translations[currentLanguage]?.alertFileReadError || translations.en.alertFileReadError;
+                        // Use fetchTranslation for template
+                        const alertMsgTemplate = fetchTranslation('alertFileReadError', currentLanguage);
                         alert(formatString(alertMsgTemplate, file.name));
                         reject(e);
                     };
@@ -303,7 +307,8 @@ async function handleFileInsert(event) { // Made async to handle await for EPUB/
                     })
                     .catch(error => {
                         console.error(`Error converting EPUB ${file.name}:`, error);
-                        const alertMsgTemplate = translations[currentLanguage]?.alertEpubError || translations.en.alertEpubError;
+                        // Use fetchTranslation for template
+                        const alertMsgTemplate = fetchTranslation('alertEpubError', currentLanguage);
                         alert(formatString(alertMsgTemplate, file.name));
                         // Don't reject the main promise, just log the error
                     })
@@ -315,14 +320,15 @@ async function handleFileInsert(event) { // Made async to handle await for EPUB/
                     .catch(error => {
                         console.error(`Error processing ZIP ${file.name}:`, error);
                         // convertZipToTxt should ideally handle its own alerts, but add a generic one here if needed
-                        // const alertMsg = translations[currentLanguage]?.alertZipProcError || translations.en.alertZipProcError;
+                        // const alertMsg = fetchTranslation('alertZipProcError', currentLanguage);
                         // alert(alertMsg);
                         // Don't reject the main promise, just log the error
                     })
             );
         } else {
             console.log(`File type not supported for insertion: ${file.name}`);
-            const alertMsgTemplate = translations[currentLanguage]?.alertFileTypeNotSupported || translations.en.alertFileTypeNotSupported;
+            // Use fetchTranslation for template
+            const alertMsgTemplate = fetchTranslation('alertFileTypeNotSupported', currentLanguage);
             alert(formatString(alertMsgTemplate, file.name.split('.').pop()));
             // Add a resolved promise for unsupported types to not break Promise.all
              processingPromises.push(Promise.resolve());
@@ -335,7 +341,8 @@ async function handleFileInsert(event) { // Made async to handle await for EPUB/
     } catch (error) {
         console.error("An error occurred during file processing:", error);
         // General error message if any promise rejected unexpectedly
-        const alertMsg = translations[currentLanguage]?.alertGenericFileError || translations.en.alertGenericFileError;
+        // Use fetchTranslation for alert
+        const alertMsg = fetchTranslation('alertGenericFileError', currentLanguage);
         alert(alertMsg);
     }
 

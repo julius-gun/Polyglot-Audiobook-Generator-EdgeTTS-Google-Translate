@@ -7,6 +7,7 @@
 //   - saveAs (FileSaver.js - loaded globally)
 //   - saveAsZip_Pipeline, cleanupTaskInstances (audio_helpers.js) // <-- Added dependencies
 //   - formatString (assumed helper)
+//   - fetchTranslation (translation_api.js) // Added dependency
 // - Classes: AudioPipelineManager (audio_pipeline.js)
 // - UI Elements: source-text, sl-voice, sl-rate, sl-pitch, max-threads, mergefiles,
 //                stat-area, progress-container, progress-bar, progress-info,
@@ -87,7 +88,8 @@ async function generateSingleLanguageAudiobook() {
     // 2. Get and validate source text
     const sourceText = sourceTextArea?.value;
     if (!sourceText || sourceText.trim() === "") {
-        alert(translations[currentLanguage]?.alertEnterSourceText || translations.en.alertEnterSourceText); // Use translated alert
+        // Use fetchTranslation for the alert
+        alert(fetchTranslation('alertEnterSourceText', currentLanguage));
         console.log("--- generateSingleLanguageAudiobook END (No source text) ---");
         return;
     }
@@ -100,7 +102,8 @@ async function generateSingleLanguageAudiobook() {
     const mergeValue = parseInt(mergeSlider?.value || '100', 10); // 100 means ALL
 
     if (!voice) {
-        alert(translations[currentLanguage]?.alertSelectVoice || translations.en.alertSelectVoice); // Use translated alert
+        // Use fetchTranslation for the alert
+        alert(fetchTranslation('alertSelectVoice', currentLanguage));
         console.log("--- generateSingleLanguageAudiobook END (No voice selected) ---");
         return;
     }
@@ -126,7 +129,7 @@ async function generateSingleLanguageAudiobook() {
     console.log("Preparing UI for single language audio...");
     if (bookContainer) bookContainer.innerHTML = ''; // Clear bilingual output area
     if (statArea) {
-        statArea.value = "Initializing audio generation...\n";
+        statArea.value = "Initializing audio generation...\n"; // Keep this initial message hardcoded or create a key if needed
         statArea.classList.remove('hide');
         statArea.style.display = 'block';
     }
@@ -137,9 +140,10 @@ async function generateSingleLanguageAudiobook() {
     }
     if (progressInfo) {
         progressInfo.style.display = 'block';
-        const processedText = translations[currentLanguage]?.statusProcessed || translations.en.statusProcessed;
-        const etaText = translations[currentLanguage]?.eta || translations.en.eta;
-        const calculatingText = translations[currentLanguage]?.statusCalculating || translations.en.statusCalculating;
+        // Use fetchTranslation for labels
+        const processedText = fetchTranslation('statusProcessed', currentLanguage);
+        const etaText = fetchTranslation('eta', currentLanguage);
+        const calculatingText = fetchTranslation('statusCalculating', currentLanguage);
         progressInfo.innerHTML = `<span>${processedText}: 0 / 0</span> | <span>${etaText}: ${calculatingText}</span>`;
     }
 
@@ -153,7 +157,8 @@ async function generateSingleLanguageAudiobook() {
     const audioChunks = chunkTextForAudio(sourceText, TARGET_CHUNK_LENGTH);
 
     if (audioChunks.length === 0) {
-        alert(translations[currentLanguage]?.alertCouldNotSplit || translations.en.alertCouldNotSplit); // Use translated alert
+        // Use fetchTranslation for the alert
+        alert(fetchTranslation('alertCouldNotSplit', currentLanguage));
         resetSingleLanguageUI(); // Clean up UI
         console.log("--- generateSingleLanguageAudiobook END (No chunks) ---");
         return;
@@ -161,9 +166,10 @@ async function generateSingleLanguageAudiobook() {
 
     // Update progress total immediately
     if (progressInfo) {
-        const processedText = translations[currentLanguage]?.statusProcessed || translations.en.statusProcessed;
-        const etaText = translations[currentLanguage]?.eta || translations.en.eta;
-        const calculatingText = translations[currentLanguage]?.statusCalculating || translations.en.statusCalculating;
+        // Use fetchTranslation for labels
+        const processedText = fetchTranslation('statusProcessed', currentLanguage);
+        const etaText = fetchTranslation('eta', currentLanguage);
+        const calculatingText = fetchTranslation('statusCalculating', currentLanguage);
         progressInfo.innerHTML = `<span>${processedText}: 0 / ${audioChunks.length}</span> | <span>${etaText}: ${calculatingText}</span>`;
     }
 
@@ -194,7 +200,8 @@ async function generateSingleLanguageAudiobook() {
         console.log("--- generateSingleLanguageAudiobook END (Pipeline Started) ---");
     } catch (error) {
         console.error("Failed to create or start AudioPipelineManager:", error);
-        const errorMsgTemplate = translations[currentLanguage]?.alertPipelineError || translations.en.alertPipelineError;
+        // Use fetchTranslation for the template
+        const errorMsgTemplate = fetchTranslation('alertPipelineError', currentLanguage);
         handlePipelineError(formatString(errorMsgTemplate, error.message)); // Pass formatted, translated message
         resetSingleLanguageUI(); // Clean up UI on critical init error
     }
@@ -227,14 +234,15 @@ function handlePipelineProgress(progressData) {
 
     if (progressInfo) {
         // formatTime is defined in ui_helpers.js
-        const calculatingText = translations[currentLanguage]?.statusCalculating || translations.en.statusCalculating;
+        // Use fetchTranslation for labels
+        const calculatingText = fetchTranslation('statusCalculating', currentLanguage);
         const etaString = (etaSeconds === null || !isFinite(etaSeconds))
             ? calculatingText
             : formatTime(etaSeconds * 1000);
 
-        const processedText = translations[currentLanguage]?.statusProcessed || translations.en.statusProcessed;
-        const failedText = translations[currentLanguage]?.statusFailedLabel || translations.en.statusFailedLabel;
-        const etaText = translations[currentLanguage]?.eta || translations.en.eta;
+        const processedText = fetchTranslation('statusProcessed', currentLanguage);
+        const failedText = fetchTranslation('statusFailedLabel', currentLanguage);
+        const etaText = fetchTranslation('eta', currentLanguage);
 
         progressInfo.innerHTML = `
             <span>${processedText}: ${processed} / ${total}</span> |
@@ -262,13 +270,14 @@ function handlePipelineComplete(completionData) {
 
     // --- Check for Failures ---
     if (failed > 0) {
-        const alertMsgTemplate = translations[currentLanguage]?.alertAudioGenerationFailed || translations.en.alertAudioGenerationFailed;
+        // Use fetchTranslation for templates
+        const alertMsgTemplate = fetchTranslation('alertAudioGenerationFailed', currentLanguage);
         console.error(formatString(alertMsgTemplate, failed));
 
-        let finalMessage = `\n${translations[currentLanguage]?.audioGenFailedMessage || translations.en.audioGenFailedMessage}`;
-        const detailsTemplate = translations[currentLanguage]?.audioGenFailedDetails || translations.en.audioGenFailedDetails;
+        let finalMessage = `\n${fetchTranslation('audioGenFailedMessage', currentLanguage)}`;
+        const detailsTemplate = fetchTranslation('audioGenFailedDetails', currentLanguage);
         finalMessage += `\n${formatString(detailsTemplate, failed)}`;
-        finalMessage += `\n${translations[currentLanguage]?.audioGenFailedNoOutput || translations.en.audioGenFailedNoOutput}`;
+        finalMessage += `\n${fetchTranslation('audioGenFailedNoOutput', currentLanguage)}`;
         finalMessage += "\n---";
 
         if (statArea) {
@@ -276,9 +285,10 @@ function handlePipelineComplete(completionData) {
             statArea.scrollTop = statArea.scrollHeight; // Scroll to bottom
         }
         if (progressInfo) {
-            const processedText = translations[currentLanguage]?.statusProcessed || translations.en.statusProcessed;
-            const failedText = translations[currentLanguage]?.statusFailedLabel || translations.en.statusFailedLabel;
-            const failedExclaimText = translations[currentLanguage]?.statusFailedExclaim || translations.en.statusFailedExclaim;
+            // Use fetchTranslation for labels
+            const processedText = fetchTranslation('statusProcessed', currentLanguage);
+            const failedText = fetchTranslation('statusFailedLabel', currentLanguage);
+            const failedExclaimText = fetchTranslation('statusFailedExclaim', currentLanguage);
             progressInfo.innerHTML = `
                 <span>${processedText}: ${processed} / ${total}</span> |
                 <span style="color: red;">${failedText} ${failed}</span> |
@@ -286,7 +296,8 @@ function handlePipelineComplete(completionData) {
             `;
         }
         if (progressBar) {
-            const failedProgressTemplate = translations[currentLanguage]?.statusFailedProgress || translations.en.statusFailedProgress;
+            // Use fetchTranslation for template
+            const failedProgressTemplate = fetchTranslation('statusFailedProgress', currentLanguage);
             progressBar.style.backgroundColor = '#dc3545'; // Red color for failure
             progressBar.textContent = formatString(failedProgressTemplate, failed, total);
         }
@@ -301,8 +312,9 @@ function handlePipelineComplete(completionData) {
     }
 
     // --- Handle Success ---
-    let finalMessage = `\n${translations[currentLanguage]?.audioGenSuccessMessage || translations.en.audioGenSuccessMessage}`;
-    const successDetailsTemplate = translations[currentLanguage]?.audioGenSuccessDetails || translations.en.audioGenSuccessDetails;
+    // Use fetchTranslation for templates
+    let finalMessage = `\n${fetchTranslation('audioGenSuccessMessage', currentLanguage)}`;
+    const successDetailsTemplate = fetchTranslation('audioGenSuccessDetails', currentLanguage);
     finalMessage += formatString(successDetailsTemplate, processed, total);
     finalMessage += " ---";
 
@@ -311,8 +323,9 @@ function handlePipelineComplete(completionData) {
         statArea.scrollTop = statArea.scrollHeight; // Scroll to bottom
     }
     if (progressInfo) {
-        const processedText = translations[currentLanguage]?.statusProcessed || translations.en.statusProcessed;
-        const finishedExclaimText = translations[currentLanguage]?.statusFinishedExclaim || translations.en.statusFinishedExclaim;
+        // Use fetchTranslation for labels
+        const processedText = fetchTranslation('statusProcessed', currentLanguage);
+        const finishedExclaimText = fetchTranslation('statusFinishedExclaim', currentLanguage);
         progressInfo.innerHTML = `
             <span>${processedText}: ${processed} / ${total}</span> |
             <span>${finishedExclaimText}</span>
@@ -362,12 +375,14 @@ function handlePipelineError(errorMessage) {
         statArea.scrollTop = statArea.scrollHeight;
     }
     if (progressInfo) {
-        const pipelineErrorLabel = translations[currentLanguage]?.pipelineErrorLabel || translations.en.pipelineErrorLabel;
+        // Use fetchTranslation for label
+        const pipelineErrorLabel = fetchTranslation('pipelineErrorLabel', currentLanguage);
         progressInfo.innerHTML += ` | <span style="color: red;">${pipelineErrorLabel}</span>`;
     }
     if (progressBar) {
         progressBar.style.backgroundColor = '#dc3545'; // Red color for failure
-        progressBar.textContent = translations[currentLanguage]?.statusError || translations.en.statusError;
+        // Use fetchTranslation for status
+        progressBar.textContent = fetchTranslation('statusError', currentLanguage);
     }
     alert(errorMessage); // Show the translated error message
 
@@ -503,16 +518,19 @@ async function saveIndividualFiles_Pipeline(successfulResults, baseFilename) {
             const audioBlob = new Blob([instance.my_uint8Array.buffer], { type: 'audio/mpeg' });
             const filename = `${baseFilename}_part_${instance.my_filenum}.mp3`;
             console.log(`Saving individual file: ${filename}`);
-            instance.update_stat("statusSaving"); // Update status before saveAs using key
+            // Pass translated status to update_stat
+            instance.update_stat(fetchTranslation("statusSaving", currentLanguage));
 
             try {
                 saveAs(audioBlob, filename); // FileSaver.js
-                instance.update_stat("statusDownloadStarted"); // Use key
+                // Pass translated status to update_stat
+                instance.update_stat(fetchTranslation("statusDownloadStarted", currentLanguage));
                 savedCount++;
                 await sleep(50); // Small delay between downloads might help slightly, but ZIP is better
             } catch (e) {
                 console.error(`Error initiating download for ${filename}:`, e);
-                instance.update_stat("statusErrorDownloading"); // Use key
+                // Pass translated status to update_stat
+                instance.update_stat(fetchTranslation("statusErrorDownloading", currentLanguage));
             }
             // NOTE: Cleanup happens *after* the loop now
         } else {
@@ -564,7 +582,8 @@ async function doMerge_Pipeline(successfulResults, baseFilename, chunkSize) {
             if (instance && instance.my_uint8Array && instance.my_uint8Array.length > 0) {
                 partsInChunk.push(instance.my_uint8Array);
                 combinedLength += instance.my_uint8Array.length;
-                instance.update_stat("statusMerging"); // Update status using key
+                // Pass translated status to update_stat
+                instance.update_stat(fetchTranslation("statusMerging", currentLanguage));
             } else {
                 console.warn(`Skipping invalid instance during merge: Index ${instance?.indexpart}`);
             }
@@ -593,7 +612,8 @@ async function doMerge_Pipeline(successfulResults, baseFilename, chunkSize) {
             // Update status for successfully merged instances in this chunk
             for (const instance of chunkInstances) {
                 if (instance && typeof instance.update_stat === 'function') {
-                    instance.update_stat("statusMergedAndSaved"); // Use key
+                    // Pass translated status to update_stat
+                    instance.update_stat(fetchTranslation("statusMergedAndSaved", currentLanguage));
                 }
             }
             await sleep(25); // Small delay after saving chunk
@@ -644,7 +664,8 @@ async function saveMerge_Pipeline(combinedData, mergeNum, baseFilename, isSingle
         // Status updates for individual parts were done in doMerge_Pipeline
     } catch (e) {
         console.error(`Error initiating download for merged file ${filename}:`, e);
-        const alertMsgTemplate = translations[currentLanguage]?.alertSaveMergedError || translations.en.alertSaveMergedError;
+        // Use fetchTranslation for template
+        const alertMsgTemplate = fetchTranslation('alertSaveMergedError', currentLanguage);
         alert(formatString(alertMsgTemplate, filename));
         // Re-throw the error so the caller (doMerge_Pipeline) can potentially handle it? Or just log here.
         // throw e; // Optional: re-throw

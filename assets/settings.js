@@ -57,8 +57,11 @@ function saveSettings() {
         const threads_value_span = document.querySelector('.threads-value'); // Use class
         const merge_value_span = document.querySelector('.merge-value'); // Use class
         // Add null checks before accessing textContent
-        if (threads_value_span && threads_value_span.textContent) localStorage.setItem('threads_value_textContent', threads_value_span.textContent);
-        if (merge_value_span && merge_value_span.textContent) localStorage.setItem('merge_value_textContent', merge_value_span.textContent);
+        // Note: Saving the textContent which includes translated text ("ALL", "pcs.") might cause issues
+        // if the UI language changes before the next load. It's better to derive this text on load/change.
+        // Removing saving of these textContents.
+        // if (threads_value_span && threads_value_span.textContent) localStorage.setItem('threads_value_textContent', threads_value_span.textContent);
+        // if (merge_value_span && merge_value_span.textContent) localStorage.setItem('merge_value_textContent', merge_value_span.textContent);
 
 
         // Save other settings if they exist
@@ -103,15 +106,15 @@ function loadSettings() {
 
 
         // Load text values associated with sliders (optional, can be derived by triggering change handler)
-        const threads_value_span = document.querySelector('.threads-value'); // Use class
-        const merge_value_span = document.querySelector('.merge-value'); // Use class
-        // Add null checks
-        const threadsTextContent = localStorage.getItem('threads_value_textContent');
-        if (threads_value_span && threadsTextContent !== null) { threads_value_span.textContent = threadsTextContent; }
+        // Removed loading of textContent as it's better derived. The initialization script already
+        // calls handleSliderChange which will set the correct initial text based on loaded values and current language.
+        // const threads_value_span = document.querySelector('.threads-value'); // Use class
+        // const merge_value_span = document.querySelector('.merge-value'); // Use class
+        // const threadsTextContent = localStorage.getItem('threads_value_textContent');
+        // if (threads_value_span && threadsTextContent !== null) { threads_value_span.textContent = threadsTextContent; }
+        // const mergeTextContent = localStorage.getItem('merge_value_textContent');
+        // if (merge_value_span && mergeTextContent !== null) { merge_value_span.textContent = mergeTextContent; }
 
-        const mergeTextContent = localStorage.getItem('merge_value_textContent');
-        if (merge_value_span && mergeTextContent !== null) { merge_value_span.textContent = mergeTextContent; }
-        // It might be better to trigger the slider change handler after loading values instead of saving/loading textContent
 
         // Load other settings if they exist (Add null checks)
         const pointsSelectValue = localStorage.getItem('pointsSelect_value');

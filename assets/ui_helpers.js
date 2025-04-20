@@ -52,8 +52,8 @@ function openBookView() {
     const outputContent = document.getElementById('output').innerHTML;
     const themeClass = document.body.className;
 
-    // Get translated title (This line uses await)
-    const windowTitle = fetchTranslation('bookViewWindowTitle', currentLanguage); // REMOVED await
+    // Get translated title (Synchronous call)
+    const windowTitle = fetchTranslation('bookViewWindowTitle', currentLanguage);
   
     // Define specific CSS for the book view window
     const bookViewStyles = `
@@ -152,7 +152,7 @@ function openBookView() {
       bookViewWindow.document.close();
     } else {
       // Use synchronous fetchTranslation for the alert
-      const alertMsg = fetchTranslation('alertPopupBlocked', currentLanguage); // REMOVED await
+      const alertMsg = fetchTranslation('alertPopupBlocked', currentLanguage);
       alert(alertMsg);
     }
   }

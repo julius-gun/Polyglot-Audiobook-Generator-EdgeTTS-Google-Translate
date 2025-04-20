@@ -74,7 +74,8 @@ function cleanupTaskInstances(results) {
 async function saveAsZip_Pipeline(successfulResults, baseFilename, statArea = null) {
     // Helper function to update status area safely
     const updateStatus = (messageKey, ...args) => {
-        const messageTemplate = translations[currentLanguage]?.[messageKey] || translations.en[messageKey] || messageKey;
+        // Use fetchTranslation to get the template
+        const messageTemplate = fetchTranslation(messageKey, currentLanguage);
         const message = formatString(messageTemplate, ...args);
         if (statArea) {
             // Append message on a new line
@@ -88,7 +89,8 @@ async function saveAsZip_Pipeline(successfulResults, baseFilename, statArea = nu
     if (typeof JSZip === 'undefined') {
         const errorMsgKey = "alertJszipNotFound";
         updateStatus(errorMsgKey);
-        alert(translations[currentLanguage]?.[errorMsgKey] || translations.en[errorMsgKey]); // User feedback
+        // Use fetchTranslation for the alert
+        alert(fetchTranslation(errorMsgKey, currentLanguage)); // User feedback
         // Clean up instances as we cannot proceed
         cleanupTaskInstances(successfulResults);
         return;
@@ -107,7 +109,8 @@ async function saveAsZip_Pipeline(successfulResults, baseFilename, statArea = nu
         // Double-check instance validity (though input should be pre-filtered)
         if (instance && instance.my_uint8Array && instance.my_uint8Array.length > 0 && instance.my_filenum) {
             const filename = `${baseFilename}_part_${instance.my_filenum}.mp3`;
-            instance.update_stat("statusAddingToZip"); // Update individual part status using key
+            // Pass the key to update_stat, it handles translation internally
+            instance.update_stat("statusAddingToZip");
             zip.file(filename, instance.my_uint8Array, { binary: true });
             zipCount++;
             await sleep(2); // Tiny sleep to allow UI updates during loop
@@ -149,7 +152,8 @@ async function saveAsZip_Pipeline(successfulResults, baseFilename, statArea = nu
 
         } catch (e) {
             const errorMsgKey = "alertZipError";
-            const errorMsg = formatString(translations[currentLanguage]?.[errorMsgKey] || translations.en[errorMsgKey], e.message);
+            // Use fetchTranslation for the template
+            const errorMsg = formatString(fetchTranslation(errorMsgKey, currentLanguage), e.message);
             updateStatus(errorMsg); // Pass the formatted message directly
             console.error(errorMsg, e);
             alert(errorMsg); // User feedback
@@ -157,7 +161,8 @@ async function saveAsZip_Pipeline(successfulResults, baseFilename, statArea = nu
             // Update status for instances to show error
             for (const instance of successfulResults) {
                  if (instance && typeof instance.update_stat === 'function') {
-                    instance.update_stat("statusZipCreationFailed"); // Use key
+                    // Pass the key to update_stat
+                    instance.update_stat("statusZipCreationFailed");
                  }
             }
         } finally {

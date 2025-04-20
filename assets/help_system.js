@@ -3,7 +3,7 @@
 // Depends on:
 // - DOM Elements: #help-title, #help-text, .help-section, #pointstype
 // - Globals: translations, currentLanguage
-// - Functions: formatString (assumed helper)
+// - Functions: formatString (assumed helper), fetchTranslation (translation_api.js) // Added dependency
 
 function showHelp(title, text) {
     const helpTitle = document.getElementById('help-title');
@@ -46,11 +46,13 @@ function handlePointsTypeClickForHelp() {
         'V2': 'helpPeriodReplacementV2',
         'V3': 'helpPeriodReplacementV3'
     };
-    const titleTemplate = translations[currentLanguage]?.helpPeriodReplacementTitle || translations.en.helpPeriodReplacementTitle;
+    // Use fetchTranslation for title template
+    const titleTemplate = fetchTranslation('helpPeriodReplacementTitle', currentLanguage);
     const title = formatString(titleTemplate, mode);
 
     const helpKey = helpTextKeys[mode] || 'helpPeriodReplacementDefault';
-    const helpText = translations[currentLanguage]?.[helpKey] || translations.en[helpKey];
+    // Use fetchTranslation for help text
+    const helpText = fetchTranslation(helpKey, currentLanguage);
 
     showHelp(title, helpText);
 }
