@@ -4,6 +4,8 @@
 // - Functions:
 //   - splitIntoSentences, mergeShortSentences, sleep (translation_utils.js)
 //   - formatTime (ui_helpers.js)
+//   - createAndRunAudioTask (audio_helpers.js) 
+
 // - Classes: SocketEdgeTTS (socket_edge_tts.js)
 // - UI Elements: source-text, sl-voice, sl-rate, sl-pitch, max-threads, mergefiles,
 //                stat-area, progress-container, progress-bar, progress-info,
@@ -21,7 +23,8 @@ let audioGenerationState = {
     current_part_index: 0, // Index for the next sentence to process
     processed_parts_count: 0, // Counter for successfully completed parts
     failed_parts_count: 0, // Counter for failed parts
-    threads_info: { count: 0, max: 10 }, // Current active threads and max allowed
+    active_thread_count: 0, // NEW: Direct counter for active tasks
+    max_threads: 10, // NEW: Store max threads directly
     startTime: 0,
     merge_enabled: false,
     merge_chunk_size: Infinity, // Default to ALL (Infinity)
@@ -201,8 +204,8 @@ async function generateSingleLanguageAudiobook() {
     // *** END RE-APPLY ***
 
     audioGenerationState.run_work = true;
-    audioGenerationState.threads_info.max = maxThreads;
-    audioGenerationState.threads_info.count = 0; // Reset active count
+    audioGenerationState.max_threads = maxThreads; // Store max threads
+    audioGenerationState.active_thread_count = 0; // Reset active count
     audioGenerationState.merge_enabled = mergeEnabled;
     audioGenerationState.merge_chunk_size = mergeChunkSize;
     // *** Determine base filename HERE ***
@@ -258,13 +261,13 @@ function startAudioGeneration_SingleLang(voice, rate, pitch) {
     if (!audioGenerationState.run_work) return; // Check if cancelled
 
     // Log the base filename being used
-    console.log(`Starting generation with: BaseFilename=${audioGenerationState.base_filename}, Voice=${voice}, Rate=${rate}, Pitch=${pitch}, Threads=${audioGenerationState.threads_info.max}, Merge=${audioGenerationState.merge_enabled}, ChunkSize=${audioGenerationState.merge_chunk_size === Infinity ? 'ALL' : audioGenerationState.merge_chunk_size}`);
+    console.log(`Starting generation with: BaseFilename=${audioGenerationState.base_filename}, Voice=${voice}, Rate=${rate}, Pitch=${pitch}, Threads=${audioGenerationState.max_threads}, Merge=${audioGenerationState.merge_enabled}, ChunkSize=${audioGenerationState.merge_chunk_size === Infinity ? 'ALL' : audioGenerationState.merge_chunk_size}`);
 
     audioGenerationState.startTime = Date.now();
     updateAudioProgress(); // Initial progress update (0 / total)
 
     // Start filling the pipeline based on max threads
-    for (let i = 0; i < audioGenerationState.threads_info.max; i++) {
+    for (let i = 0; i < audioGenerationState.max_threads; i++) {
         queueNextAudioTask_SingleLang(voice, rate, pitch);
     }
 }
@@ -279,8 +282,9 @@ function clearOldRun_SingleLang() {
     audioGenerationState.current_part_index = 0;
     audioGenerationState.processed_parts_count = 0;
     audioGenerationState.failed_parts_count = 0;
-    audioGenerationState.threads_info = { count: 0, max: 10 };
-    // REMOVED: audioGenerationState.save_path_handle = null;
+    audioGenerationState.active_thread_count = 0; // Reset counter
+    audioGenerationState.max_threads = 10; // Reset max threads default
+
     audioGenerationState.startTime = 0;
     audioGenerationState.merge_enabled = false;
     audioGenerationState.merge_chunk_size = Infinity;
@@ -333,7 +337,7 @@ function queueNextAudioTask_SingleLang(voice, rate, pitch) {
     }
 
     // Check if max threads are already running
-    if (audioGenerationState.threads_info.count >= audioGenerationState.threads_info.max) {
+    if (audioGenerationState.active_thread_count >= audioGenerationState.max_threads) { // Use direct counter and max
         // console.log("Max threads reached, waiting for a task to complete...");
         return; // Wait for a completion callback to trigger queuing the next task
     }
@@ -346,7 +350,7 @@ function queueNextAudioTask_SingleLang(voice, rate, pitch) {
     console.log(`Queueing part ${index + 1}/${audioGenerationState.audio_sentences.length}`);
 
     // Increment active thread count and index for next call *before* creating the instance
-    audioGenerationState.threads_info.count++;
+    audioGenerationState.active_thread_count++; // Increment direct counter
     audioGenerationState.current_part_index++;
 
     // --- FORMAT THE VOICE NAME ---
@@ -364,26 +368,31 @@ function queueNextAudioTask_SingleLang(voice, rate, pitch) {
     }
     // --- END FORMATTING ---
 
+    // *** USE THE HELPER FUNCTION ***
+    const taskConfig = {
+        index: index,
+        text: text,
+        voice: formattedVoice,
+        rate: rate,
+        pitch: pitch,
+        volume: "+0%", // Volume (not currently adjustable in UI)
+        baseFilename: audioGenerationState.base_filename,
+        fileNum: fileNum,
+        statArea: statArea,
+        mergeEnabled: audioGenerationState.merge_enabled,
+    };
 
-    // Create and store the SocketEdgeTTS instance
-    const ttsInstance = new SocketEdgeTTS(
-        index,
-        audioGenerationState.base_filename, // Use the base filename (directory name or default)
-        fileNum,
-        formattedVoice, // *** USE THE FORMATTED VOICE NAME ***
-        pitch,
-        rate,
-        "+0%", // Volume (not currently adjustable in UI)
-        text,
-        statArea,
-        audioGenerationState.threads_info, // Pass for potential status updates (though less needed now)
-        audioGenerationState.merge_enabled, // Pass true if merging files in memory (used by SocketEdgeTTS?) - Check usage, maybe remove
+    // createAndRunAudioTask is defined in audio_helpers.js
+    const ttsInstance = createAndRunAudioTask(
+        taskConfig,
         // *** Completion Callback ***
-        (completedIndex, errorOccurred) => {
-            handleTaskCompletion_SingleLang(completedIndex, errorOccurred, voice, rate, pitch); // Pass original voice value here if needed later
+        (completedIndex, errorOccurred, instance) => { // Instance is now passed back
+            // Pass original voice value here if needed later, and the instance
+            handleTaskCompletion_SingleLang(completedIndex, errorOccurred, instance, voice, rate, pitch);
         }
     );
 
+    // Store the instance (returned by the helper)
     audioGenerationState.parts_book[index] = ttsInstance;
 
     // Immediately try to queue another task if threads are available and sentences remain
@@ -391,28 +400,38 @@ function queueNextAudioTask_SingleLang(voice, rate, pitch) {
 }
 
 // Handles the completion of a SocketEdgeTTS task
-function handleTaskCompletion_SingleLang(index, errorOccurred, voice, rate, pitch) {
+// *** MODIFIED: Now receives the instance as the third argument ***
+function handleTaskCompletion_SingleLang(index, errorOccurred, instance, voice, rate, pitch) {
     if (index < 0 || index >= audioGenerationState.parts_book.length) {
         console.error(`Invalid index received from completion callback: ${index}`);
+        // Decrement thread count even if index is invalid, as *something* finished
+        audioGenerationState.active_thread_count--;
         return;
     }
 
-    const part = audioGenerationState.parts_book[index];
+    // We already have the instance passed directly
+    const part = instance; // Use the passed instance
+
     if (!part) {
-        // This might happen if clearOldRun was called, or double callback
-        console.warn(`Completion callback received for already cleared/missing part index: ${index}`);
+        // This might happen if clearOldRun was called, or double callback, or instance creation failed earlier
+        console.warn(`Completion callback received for missing/invalid instance at index: ${index}`);
+        // Decrement thread count as *something* finished
+        audioGenerationState.active_thread_count--;
+        // Attempt to queue next task just in case
+        queueNextAudioTask_SingleLang(voice, rate, pitch);
+        checkCompletion_SingleLang();
         return;
     }
 
     // Decrement active thread count regardless of success/failure
-    audioGenerationState.threads_info.count--;
+    audioGenerationState.active_thread_count--;
 
     if (errorOccurred) {
         console.error(`Part ${index + 1} failed.`);
         audioGenerationState.failed_parts_count++;
         // Optional: Implement retry logic here
-        // part.clear(); // Clean up the failed instance
-        // audioGenerationState.parts_book[index] = null; // Remove reference
+        // part.clear(); // Clean up the failed instance - Let the caller handle cleanup via parts_book[index] = null later?
+        // audioGenerationState.parts_book[index] = null; // Mark as failed/to be ignored by merge/save
         // Don't save or merge failed parts
     } else {
         console.log(`Part ${index + 1} completed successfully.`);
@@ -421,7 +440,7 @@ function handleTaskCompletion_SingleLang(index, errorOccurred, voice, rate, pitc
         // Handle saving/merging based on settings
         if (!audioGenerationState.merge_enabled) {
             // Save individual file immediately
-            saveIndividualFile_SingleLang(index);
+            saveIndividualFile_SingleLang(index); // Pass index to find the part in parts_book
         } else {
             // Merging enabled, check if a chunk can be merged now
             doMerge_SingleLang();
@@ -525,7 +544,8 @@ function checkCompletion_SingleLang() {
     const completedCount = audioGenerationState.processed_parts_count + audioGenerationState.failed_parts_count;
 
     // Check if all parts have been accounted for and no threads are active
-    if (audioGenerationState.run_work && completedCount === totalParts && audioGenerationState.threads_info.count === 0) {
+    // Use active_thread_count now
+    if (audioGenerationState.run_work && completedCount === totalParts && audioGenerationState.active_thread_count === 0) {
         console.log(`All tasks finished. Success: ${audioGenerationState.processed_parts_count}, Failed: ${audioGenerationState.failed_parts_count}`);
 
         // If merging, ensure the final merge check is done

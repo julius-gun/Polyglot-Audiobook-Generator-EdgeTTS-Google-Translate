@@ -1,7 +1,7 @@
 ﻿class SocketEdgeTTS {
 	constructor(_indexpart, _filename, _filenum,
 				_voice, _pitch, _rate, _volume, _text,
-				_statArea, _obj_threads_info, _save_to_var, _onCompleteOrErrorCallback) {
+				_statArea, /* REMOVED _obj_threads_info */ _save_to_var, _onCompleteOrErrorCallback) { // Removed threads_info
 		this.bytes_data_separator = new TextEncoder().encode("Path:audio\r\n")
 		this.data_separator = new Uint8Array(this.bytes_data_separator)
 
@@ -20,7 +20,7 @@
 		this.statArea = _statArea
 		this.mp3_saved = false // Indicates if audio data has been successfully processed and stored in my_uint8Array
 		this.save_to_var = _save_to_var // Still relevant to know if data should be kept for merging
-		this.obj_threads_info = _obj_threads_info // Keep for potential status updates? (Could be removed later)
+		// REMOVED: this.obj_threads_info = _obj_threads_info // No longer needed here
 		this.end_message_received = false
 		this.start_save = false // Flag used by audio_single_language.js to track merge/save status
 		this.onCompleteOrErrorCallback = _onCompleteOrErrorCallback; // Store the callback
