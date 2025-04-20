@@ -9,14 +9,14 @@ function saveEpub() {
     makeBook(translatedBookContent); // Pass the content to makeBook
   }
   
-  async function makeBook(text) { // Make async to await translations
+  async function makeBook(text) {
     const zip = new JSZip();
     const mimetype = "application/epub+zip";
 
-    // Get translated metadata
-    const epubTitle = await fetchTranslation(translations.en.epubDefaultTitle, currentLanguage);
-    const epubAuthor = await fetchTranslation(translations.en.epubDefaultAuthor, currentLanguage);
-    const epubFilename = await fetchTranslation(translations.en.epubDefaultFilename, currentLanguage);
+    // Get translated metadata using synchronous fetchTranslation
+    const epubTitle = fetchTranslation('epubDefaultTitle', currentLanguage); // REMOVED await
+    const epubAuthor = fetchTranslation('epubDefaultAuthor', currentLanguage); // REMOVED await
+    const epubFilename = fetchTranslation('epubDefaultFilename', currentLanguage); // REMOVED await
 
     const meta = `<?xml version="1.0" encoding="UTF-8"?>
     <package xmlns="http://www.idpf.org/2007/opf" unique-identifier="bookid" version="2.0">

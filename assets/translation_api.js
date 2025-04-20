@@ -29,48 +29,126 @@ async function detectLanguage(text) {
   }
 }
 
-async function fetchTranslation(text, targetLang) {
-  // --- Add check for 'Autodetect Language' specifically ---
-  // Accesses the global 'translations' object defined in ui_translations.js
-  if (text === translations['en'].languages['auto'] && targetLang === 'en') {
-      return translations['en'].languages['auto']; // Return the English version directly
-  }
-  // --- End of Add check ---
-
-  if (targetLang === 'en') return text; // No translation needed for English UI elements
-
-  const sourceLang = 'en';
-  // Use a more robust key for caching, handling potential special characters
-  const cacheKey = `ui_translation_${targetLang}_${encodeURIComponent(text)}`;
-  // Uses getCookie (defined above)
-  const cachedTranslation = getCookie(cacheKey);
-
-  if (cachedTranslation) {
-    // Decode the cached translation in case it was encoded
-    try {
-        return decodeURIComponent(cachedTranslation);
-    } catch (e) {
-        console.warn("Could not decode cached translation, fetching again.", e);
-        // Clear the potentially corrupted cookie
-        // Uses setCookie (defined above)
-        setCookie(cacheKey, '', -1); // Set expiry in the past to delete
-    }
+// NEW: Function to ensure translations for a given language are loaded
+async function ensureTranslationsAvailable(targetLang) {
+  if (targetLang === 'en' || (translations[targetLang] && Object.keys(translations[targetLang]).length >= Object.keys(translations.en).length)) {
+      // English needs no translation, or language is already fully loaded (basic check)
+      // A more robust check could compare keys if partial loading was possible.
+      console.log(`Translations for ${targetLang} are already available or not needed.`);
+      return;
   }
 
-  const url = `https://translate.googleapis.com/translate_a/single?client=gtx&sl=${sourceLang}&tl=${targetLang}&dt=t&q=${encodeURIComponent(text)}`;
-  try {
-    const response = await fetch(url);
-    const data = await response.json();
-    const translatedText = data[0][0][0];
-    // Encode the translation before storing in cookie
-    // Uses setCookie (defined above)
-    setCookie(cacheKey, encodeURIComponent(translatedText));
-    return translatedText;
-  } catch (error) {
-    console.error('UI Translation error for text:', text, 'to lang:', targetLang, error);
-    return text; // Fallback to original text on error
+  console.log(`Ensuring translations are available for: ${targetLang}`);
+  const englishKeys = Object.keys(translations.en);
+  const missingKeys = englishKeys.filter(key => !translations[targetLang]?.[key]);
+
+  if (missingKeys.length === 0) {
+      console.log(`No missing translations found for ${targetLang}.`);
+      return; // All keys already exist for this language
   }
+
+  console.log(`Fetching ${missingKeys.length} missing translations for ${targetLang}...`);
+
+  // Prepare batch for API call
+  const textsToTranslate = missingKeys.map(key => translations.en[key]);
+  const batchSize = 100; // Google Translate API has limits, batch if necessary
+  let allTranslatedTexts = [];
+
+  for (let i = 0; i < textsToTranslate.length; i += batchSize) {
+      const batch = textsToTranslate.slice(i, i + batchSize);
+      const batchText = batch.join('\n'); // Use newline as a separator
+      const url = `https://translate.googleapis.com/translate_a/single?client=gtx&sl=en&tl=${targetLang}&dt=t&q=${encodeURIComponent(batchText)}`;
+
+      try {
+          const response = await fetch(url);
+          if (!response.ok) {
+              throw new Error(`HTTP error! status: ${response.status}`);
+          }
+          const data = await response.json();
+
+          // Extract translated sentences. Structure might vary slightly, be robust.
+          let translatedBatch = [];
+          if (data && data[0]) {
+              translatedBatch = data[0].map(item => item[0]).join("").split('\n');
+          }
+
+          // Basic validation: Check if the number of translated lines matches the batch size
+          if (translatedBatch.length !== batch.length) {
+               console.warn(`Mismatch in translation count for ${targetLang}. Expected ${batch.length}, got ${translatedBatch.length}. API Response:`, data);
+               // Attempt to pad with original text or placeholders for missing ones
+               const correctedBatch = [];
+               let transIdx = 0;
+               for(let k=0; k < batch.length; k++) {
+                   // This simple split/join might merge intended newlines in source strings.
+                   // A more robust approach might use unique separators or multiple requests.
+                   // For UI strings, newlines are less common, so this might be acceptable.
+                   correctedBatch.push(translatedBatch[transIdx] || batch[k]); // Fallback to original English text
+                   transIdx++;
+               }
+               translatedBatch = correctedBatch;
+               // Fallback: Use original English text for the whole batch on severe mismatch
+               // translatedBatch = batch;
+          }
+
+          allTranslatedTexts = allTranslatedTexts.concat(translatedBatch);
+          await sleep(50, 150); // Small delay between batches if needed
+
+      } catch (error) {
+          console.error(`Error fetching UI translations batch for ${targetLang}:`, error);
+          // On error for a batch, use original English text for those keys
+          allTranslatedTexts = allTranslatedTexts.concat(batch);
+          // Potentially add a retry mechanism here
+      }
+  }
+
+
+  // Populate the global translations object
+  if (!translations[targetLang]) {
+      translations[targetLang] = {};
+  }
+
+  missingKeys.forEach((key, index) => {
+      // Ensure index is within bounds of potentially incomplete translations
+      if (index < allTranslatedTexts.length) {
+          translations[targetLang][key] = allTranslatedTexts[index];
+      } else {
+          // Fallback if translation is missing for some reason
+          translations[targetLang][key] = translations.en[key];
+          console.warn(`Translation missing for key "${key}" in language "${targetLang}" after fetch. Falling back to English.`);
+      }
+  });
+
+  console.log(`Translations for ${targetLang} populated.`);
 }
+
+
+// SIMPLIFIED: Synchronous function to get translation from the global object
+function fetchTranslation(key, targetLang) {
+    // Ensure `translations` and `translations.en` are available
+    if (typeof translations === 'undefined' || typeof translations.en === 'undefined') {
+        console.error("Global 'translations' object or 'translations.en' is not initialized.");
+        return `[ERR: ${key}]`; // Return error placeholder
+    }
+
+    // 1. Try the target language
+    if (translations[targetLang] && translations[targetLang][key] !== undefined) {
+        return translations[targetLang][key];
+    }
+
+    // 2. Fallback to English
+    if (translations.en[key] !== undefined) {
+        // Optionally log fallback? Only if targetLang wasn't 'en' initially.
+        // if (targetLang !== 'en') {
+        //     console.warn(`Translation key "${key}" not found for "${targetLang}". Using English fallback.`);
+        // }
+        return translations.en[key];
+    }
+
+    // 3. Key not found anywhere (error case)
+    console.warn(`Translation key "${key}" not found in English definitions.`);
+    return `[${key}]`; // Return the key itself as a fallback indicator
+  }
+
 
 async function translateBatch(batch, sourceLang, targetLangs, currentUiLang) {
   const batchText = batch.join('\n'); // Join sentences with newlines

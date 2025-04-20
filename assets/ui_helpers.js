@@ -48,12 +48,12 @@ function formatTime(milliseconds) {
     return timeString.trim();
   }
   
-  async function openBookView() {
+function openBookView() {
     const outputContent = document.getElementById('output').innerHTML;
-    const themeClass = document.body.className; // Get current theme class (e.g., 'bw')
+    const themeClass = document.body.className;
 
     // Get translated title (This line uses await)
-    const windowTitle = await fetchTranslation(translations.en.bookViewWindowTitle, currentLanguage);
+    const windowTitle = fetchTranslation('bookViewWindowTitle', currentLanguage); // REMOVED await
   
     // Define specific CSS for the book view window
     const bookViewStyles = `
@@ -151,8 +151,8 @@ function formatTime(milliseconds) {
         `);
       bookViewWindow.document.close();
     } else {
-      // Use the translation system for the alert
-      const alertMsg = await fetchTranslation(translations.en.alertPopupBlocked, currentLanguage);
+      // Use synchronous fetchTranslation for the alert
+      const alertMsg = fetchTranslation('alertPopupBlocked', currentLanguage); // REMOVED await
       alert(alertMsg);
     }
   }

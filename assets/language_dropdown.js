@@ -18,7 +18,7 @@ function createLanguageOptionElement(langInfo) {
   }
   
 // Creates a language dropdown (for source or target languages)
-  async function createLanguageDropdown(id) {
+function createLanguageDropdown(id) {
     const select = document.createElement('select');
     select.id = id;
     const isSourceLanguage = id === 'sl';
@@ -56,15 +56,16 @@ function createLanguageOptionElement(langInfo) {
     // Create optgroup for prioritized languages (using the ordered list)
     if (prioritizedOptions.length > 0) {
       const prioritizedGroup = document.createElement('optgroup');
-    // fetchTranslation is from translation_api.js, translations is global from ui_translations.js, currentLanguage is global from main.js
-      prioritizedGroup.label = await fetchTranslation(translations['en'].prioritizedLabel, currentLanguage);
+      // Use synchronous fetchTranslation
+      prioritizedGroup.label = fetchTranslation('prioritizedLabel', currentLanguage); // REMOVED await
       prioritizedOptions.forEach(option => prioritizedGroup.appendChild(option));
       select.appendChild(prioritizedGroup);
     }
   
     // Create optgroup for all other languages (using the sorted, non-prioritized list)
     const othersGroup = document.createElement('optgroup');
-    othersGroup.label = await fetchTranslation(translations['en'].allLanguagesLabel, currentLanguage);
+    // Use synchronous fetchTranslation (ensure correct spelling)
+    othersGroup.label = fetchTranslation('allLanguagesLabel', currentLanguage);
     otherOptions.forEach(option => othersGroup.appendChild(option));
     select.appendChild(othersGroup);
   
@@ -73,8 +74,9 @@ function createLanguageOptionElement(langInfo) {
     // otherwise select the very first option in the dropdown.
     if (isSourceLanguage && select.options.length > 0) {
       let defaultSelected = false;
-      // Try selecting 'en' if it's in prioritized
-      const enOption = select.querySelector('optgroup[label="' + await fetchTranslation(translations['en'].prioritizedLabel, currentLanguage) + '"] option[value="en"]');
+      // Use synchronous fetchTranslation for label lookup
+      const prioritizedLabelText = fetchTranslation('prioritizedLabel', currentLanguage); // REMOVED await
+      const enOption = select.querySelector(`optgroup[label="${prioritizedLabelText}"] option[value="en"]`);
       if (enOption) {
         enOption.selected = true;
         defaultSelected = true;
@@ -121,7 +123,7 @@ function createLanguageOptionElement(langInfo) {
   }
   
 // Creates the UI language selector dropdown
-async function createLanguageSelector() {
+function createLanguageSelector() {
   const select = document.createElement('select');
   select.id = 'ui-language-selector';
   select.classList.add('ui-language-select'); // Add class for styling
@@ -156,14 +158,15 @@ async function createLanguageSelector() {
     // Create optgroup for prioritized languages (using the ordered list)
   if (prioritizedOptions.length > 0) {
     const prioritizedGroup = document.createElement('optgroup');
-    prioritizedGroup.label = await fetchTranslation(translations['en'].prioritizedLabel, currentLanguage);
+    prioritizedGroup.label = fetchTranslation('prioritizedLabel', currentLanguage);
     prioritizedOptions.forEach(option => prioritizedGroup.appendChild(option));
     select.appendChild(prioritizedGroup);
   }
 
     // Create optgroup for all other languages (using the sorted, non-prioritized list)
   const othersGroup = document.createElement('optgroup');
-  othersGroup.label = await fetchTranslation(translations['en'].allLanguagesLabel, currentLanguage);
+  // Use synchronous fetchTranslation
+  othersGroup.label = fetchTranslation('allLanguagesLabel', currentLanguage); // REMOVED await
   otherOptions.forEach(option => othersGroup.appendChild(option));
   select.appendChild(othersGroup);
 

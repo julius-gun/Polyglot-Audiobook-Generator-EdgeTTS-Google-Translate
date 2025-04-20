@@ -2,7 +2,8 @@
 
 // --- Initialization ---
 
-// Modify DOMContentLoaded to set initial UI language and populate dropdowns
+// Modify DOMContentLoaded to set initial UI language, load translations, and populate dropdowns
+// Make the listener async to await ensureTranslationsAvailable
 document.addEventListener('DOMContentLoaded', async () => {
   // Calculate globals dependent on languageData
   // Note: languageCodes and maxCodeLength are declared globally in main.js for now.
@@ -43,6 +44,15 @@ document.addEventListener('DOMContentLoaded', async () => {
       currentLanguage = 'en'; // Ultimate fallback
     }
   }
+  console.log(`Initial UI Language set to: ${currentLanguage}`); // Log the determined language
+
+  // --- Pre-load translations for the initial language ---
+  // ensureTranslationsAvailable is defined in translation_api.js
+  console.log(`Pre-loading translations for ${currentLanguage}...`);
+  await ensureTranslationsAvailable(currentLanguage);
+  console.log(`Translations for ${currentLanguage} should now be loaded.`);
+  // --- End Pre-load ---
+
 
   // --- Initial Population (will be refined by updateUI) ---
   // Add language selector to the page (placeholder, will be replaced by updateUI)
@@ -65,8 +75,8 @@ document.addEventListener('DOMContentLoaded', async () => {
 
 
   // --- Call updateUI to correctly populate language dropdowns and translate ---
-  // updateUI is defined in ui.js
-  await updateUI(); // This will now handle initial population and translation
+  // updateUI is defined in ui.js 
+  updateUI(); // This will now use the pre-loaded translations synchronously
 
   // --- Populate Voice Dropdowns ---
   // REMOVED: populateVoiceDropdowns(); // Handled within updateUI

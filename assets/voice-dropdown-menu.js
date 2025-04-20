@@ -138,14 +138,14 @@ function getFlagEmoji(countryCode) {
 }
 
 // Function to update a specific voice dropdown based on the selected language
-async function updateVoiceDropdown(dropdownElement, selectedLanguageCode) { // Make async
+function updateVoiceDropdown(dropdownElement, selectedLanguageCode) { // Make async
     if (!dropdownElement) {
         console.error("Target dropdown element not provided for voice update.");
         return;
     }
     if (typeof voicesData === 'undefined' || !Array.isArray(voicesData)) { // Added check for array
         console.error("voicesData is not defined or not an array. Make sure voices-data.js is loaded correctly.");
-        dropdownElement.innerHTML = `<option disabled>${translations[currentLanguage]?.voiceErrorLoading || translations.en.voiceErrorLoading}</option>`;
+        dropdownElement.innerHTML = `<option disabled>${fetchTranslation('voiceErrorLoading', currentLanguage)}</option>`; // REMOVED await
         return;
     }
 
@@ -177,10 +177,11 @@ async function updateVoiceDropdown(dropdownElement, selectedLanguageCode) { // M
         const option = document.createElement('option');
         // Provide a more informative message based on the selection
         if (!selectedLanguageCode) {
-            option.textContent = translations[currentLanguage]?.voiceSelectLanguage || translations.en.voiceSelectLanguage;
+            // Use synchronous fetchTranslation
+            option.textContent = fetchTranslation('voiceSelectLanguage', currentLanguage); // REMOVED await
         } else {
-            // This should only happen if voicesData itself is empty
-            option.textContent = translations[currentLanguage]?.voiceNoneAvailable || translations.en.voiceNoneAvailable;
+            // Use synchronous fetchTranslation
+            option.textContent = fetchTranslation('voiceNoneAvailable', currentLanguage); // REMOVED await
         }
         option.disabled = true;
         dropdownElement.appendChild(option);
@@ -190,9 +191,9 @@ async function updateVoiceDropdown(dropdownElement, selectedLanguageCode) { // M
     // 5. Add Multilingual Optgroup (if any)
     if (multilingualVoices.length > 0) {
         const multiOptgroup = document.createElement('optgroup');
-        // Translate label and add hint if showing fallback voices
-        const multiLabelText = await fetchTranslation(translations.en.multilingualLabel, currentLanguage);
-        const fallbackHintText = showingFallbackVoices ? ` ${translations[currentLanguage]?.voiceFallbackHint || translations.en.voiceFallbackHint}` : "";
+        // Use synchronous fetchTranslation
+        const multiLabelText = fetchTranslation('multilingualLabel', currentLanguage); // REMOVED await
+        const fallbackHintText = showingFallbackVoices ? ` ${fetchTranslation('voiceFallbackHint', currentLanguage)}` : ""; // REMOVED await
         multiOptgroup.label = `${multiLabelText}${fallbackHintText}`;
         multilingualVoices.forEach(voice => {
             const option = document.createElement('option');
@@ -214,11 +215,10 @@ async function updateVoiceDropdown(dropdownElement, selectedLanguageCode) { // M
         // Only add the optgroup if there are non-multilingual voices for this language
         if (languageVoices.length > 0) {
         const optgroup = document.createElement('optgroup');
-            // Translate fallback hint if needed
-            const fallbackHintText = showingFallbackVoices ? ` ${translations[currentLanguage]?.voiceFallbackHint || translations.en.voiceFallbackHint}` : "";
-            // Use languageNames map (assumed global or accessible) for the language name
-            const langName = languageNames[languageCode] || languageCode.toUpperCase(); // Fallback to code if name not found
-            const separator = (multilingualVoices.length > 0 || showingFallbackVoices) ? "--- " : ""; // Keep separator logic
+            // Use synchronous fetchTranslation
+            const fallbackHintText = showingFallbackVoices ? ` ${fetchTranslation('voiceFallbackHint', currentLanguage)}` : ""; // REMOVED await
+            const langName = languageNames[languageCode] || languageCode.toUpperCase();
+            const separator = (multilingualVoices.length > 0 || showingFallbackVoices) ? "--- " : "";
             optgroup.label = `${separator}${langName}${fallbackHintText}`;
         dropdownElement.appendChild(optgroup);
 
