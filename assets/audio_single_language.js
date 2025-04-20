@@ -245,11 +245,47 @@ function handlePipelineComplete(completionData) {
 
     const statArea = document.getElementById('stat-area');
     const progressInfo = document.getElementById('progress-info');
+    const progressBar = document.getElementById('progress-bar'); // Get progress bar for final state
 
-    let finalMessage = "\n--- Audio Generation Finished ---"; // TODO: Translate
+    // --- Check for Failures ---
     if (failed > 0) {
-        finalMessage += ` (${failed} part(s) failed)`;
+        console.error(`Audio generation failed: ${failed} part(s) could not be created after retries.`);
+        let finalMessage = `\n--- Audio Generation FAILED ---`; // TODO: Translate
+        finalMessage += `\n${failed} part(s) failed after retries.`;
+        finalMessage += `\nNo output file was generated. Please check the errors above.`;
+        finalMessage += "\n---";
+
+        if (statArea) {
+            statArea.value += finalMessage;
+            statArea.scrollTop = statArea.scrollHeight; // Scroll to bottom
+        }
+        if (progressInfo) {
+            // TODO: Translate "Failed!"
+            progressInfo.innerHTML = `
+                <span>Processed: ${processed} / ${total}</span> |
+                <span style="color: red;">Failed: ${failed}</span> |
+                <span style="color: red;">Failed!</span>
+            `;
+        }
+         if (progressBar) {
+             // Optionally indicate failure state on progress bar
+             progressBar.style.backgroundColor = '#dc3545'; // Red color for failure
+             progressBar.textContent = `Failed (${failed}/${total})`; // TODO: Translate
+         }
+
+        // Clean up all instances (failed and potentially successful ones)
+        console.log("Cleaning up task instances due to failure...");
+        cleanupTaskInstances(results); // Call cleanup function
+
+        // Pipeline is done, clear the reference
+        currentPipelineManager = null;
+        return; // Stop execution here
     }
+
+    // --- Handle Success ---
+    // This part only runs if failed === 0
+    let finalMessage = "\n--- Audio Generation Finished Successfully ---"; // TODO: Translate
+    finalMessage += ` (${processed}/${total} parts created)`;
     finalMessage += " ---";
 
     if (statArea) {
@@ -257,21 +293,32 @@ function handlePipelineComplete(completionData) {
         statArea.scrollTop = statArea.scrollHeight; // Scroll to bottom
     }
     if (progressInfo) {
-        let finalProgressText = " | <span>Finished!</span>"; // TODO: Translate
-        if (failed > 0) {
-            finalProgressText += ` (${failed} failed)`;
-        }
-        progressInfo.innerHTML += finalProgressText;
+        // TODO: Translate "Finished!"
+        progressInfo.innerHTML = `
+            <span>Processed: ${processed} / ${total}</span> |
+            <span>Finished!</span>
+        `;
+    }
+    if (progressBar) {
+        // Ensure progress bar shows 100% and maybe a success color
+        progressBar.style.width = '100%';
+        progressBar.textContent = '100%';
+        progressBar.style.backgroundColor = '#28a745'; // Green color for success
     }
 
-    // Trigger saving/merging logic AFTER the pipeline is fully complete
-    if (processed > 0) { // Only save if at least one part succeeded
+
+    // Trigger saving/merging logic only on complete success
+    if (processed > 0) { // Should always be true if failed === 0 and total > 0
         console.log("Triggering post-pipeline saving/merging...");
+        // Pass results, filename, and settings. This function will handle clearing instances internally after saving.
         saveAudioResults(results, currentBaseFilename, currentMergeSettings);
+    } else if (total === 0) {
+        console.log("Pipeline finished successfully, but there were no tasks to process.");
     } else {
-        console.log("Skipping saving/merging as no parts were processed successfully.");
-        // Clean up instances even if not saved
-        results.forEach(instance => instance?.clear());
+        // This case (failed=0, processed=0, total>0) should theoretically not happen
+        // but handle defensively.
+        console.warn("Pipeline finished with no failures but also no processed parts. Skipping save.");
+        cleanupTaskInstances(results); // Clean up anyway
     }
 
     // Pipeline is done, clear the reference
@@ -279,13 +326,14 @@ function handlePipelineComplete(completionData) {
 }
 
 /**
- * Handles critical errors reported by the AudioPipelineManager.
+ * Handles critical errors reported by the AudioPipelineManager (e.g., initialization errors).
  * @param {string} errorMessage - The error message.
  */
 function handlePipelineError(errorMessage) {
     console.error("Audio Pipeline Error:", errorMessage);
     const statArea = document.getElementById('stat-area');
     const progressInfo = document.getElementById('progress-info');
+    const progressBar = document.getElementById('progress-bar');
 
     const errorText = `\n--- PIPELINE ERROR: ${errorMessage} ---`; // TODO: Translate
 
@@ -294,11 +342,16 @@ function handlePipelineError(errorMessage) {
         statArea.scrollTop = statArea.scrollHeight;
     }
     if (progressInfo) {
-        progressInfo.innerHTML += ` | <span style="color: red;">Error!</span>`; // TODO: Translate
+        progressInfo.innerHTML += ` | <span style="color: red;">Pipeline Error!</span>`; // TODO: Translate
+    }
+     if (progressBar) {
+         progressBar.style.backgroundColor = '#dc3545'; // Red color for failure
+         progressBar.textContent = 'Error'; // TODO: Translate
     }
     alert(`Audio generation failed: ${errorMessage}`); // TODO: Translate
 
     // Pipeline might be in an inconsistent state, clear the reference
+    // No results array to clean up here as the pipeline likely didn't even start properly
     currentPipelineManager = null;
     // Consider resetting UI further if needed
 }
@@ -314,7 +367,7 @@ function resetSingleLanguageUI() {
     // Clear any active pipeline
     if (currentPipelineManager) {
         console.log("Clearing active pipeline manager...");
-        currentPipelineManager.clear();
+        currentPipelineManager.clear(); // This should call clear on active instances
         currentPipelineManager = null;
     }
 
@@ -334,6 +387,7 @@ function resetSingleLanguageUI() {
     if (progressBar) {
         progressBar.style.width = '0%';
         progressBar.textContent = '0%';
+        progressBar.style.backgroundColor = ''; // Reset background color
     }
     if (progressInfo) {
         progressInfo.style.display = 'none';
@@ -354,39 +408,73 @@ function resetSingleLanguageUI() {
 // --- Post-Pipeline Saving/Merging Logic ---
 
 /**
- * Orchestrates saving or merging based on settings after pipeline completion.
+ * Cleans up all task instances by calling their clear() method.
  * @param {Array<SocketEdgeTTS|null>} results - Array of task instances.
+ */
+function cleanupTaskInstances(results) {
+    if (!results) return;
+    console.log(`Cleaning up ${results.length} task instance slots.`);
+    results.forEach((instance, index) => {
+        if (instance && typeof instance.clear === 'function') {
+            // console.log(`Clearing instance ${index + 1}`);
+            instance.clear();
+        }
+        // Ensure the slot in the original array is nullified if needed elsewhere,
+        // though the pipeline manager is usually discarded after completion.
+        // results[index] = null; // Optional: Nullify the slot
+    });
+}
+
+
+/**
+ * Orchestrates saving or merging based on settings after pipeline completion.
+ * Assumes this is only called when all tasks succeeded (failed === 0).
+ * @param {Array<SocketEdgeTTS|null>} results - Array of task instances (all should be successful).
  * @param {string} baseFilename - Base name for files.
  * @param {object} mergeSettings - Merge configuration.
  */
 function saveAudioResults(results, baseFilename, mergeSettings) {
-    if (!results || results.length === 0) {
-        console.log("No results to save.");
+    // Filter out any null/unexpected failures just in case, though theoretically not needed now
+    const successfulResults = results.filter(instance => instance && instance.mp3_saved && instance.my_uint8Array && instance.my_uint8Array.length > 0);
+
+    if (successfulResults.length === 0) {
+        console.log("No successful results with audio data found to save.");
+        // Clean up any potentially remaining non-null instances from the original array
+        cleanupTaskInstances(results);
         return;
     }
 
+    console.log(`Processing ${successfulResults.length} successful parts for saving/merging.`);
+
     if (!mergeSettings.enabled) {
         console.log("Saving individual files...");
-        saveIndividualFiles_Pipeline(results, baseFilename);
+        // Pass only successful results; this function will clear them after saving
+        saveIndividualFiles_Pipeline(successfulResults, baseFilename);
     } else {
         console.log("Merging files...");
-        doMerge_Pipeline(results, baseFilename, mergeSettings.chunkSize);
+        // Pass only successful results; this function will clear them after merging/saving
+        doMerge_Pipeline(successfulResults, baseFilename, mergeSettings.chunkSize);
     }
+
+    // Note: Instances are cleared within saveIndividualFiles_Pipeline and doMerge_Pipeline
+    // We might still want to run cleanupTaskInstances on the *original* results array
+    // IF the filtering step above could potentially leave some non-null instances behind
+    // (e.g., instances that exist but mp3_saved is false). Let's add it for safety.
+    // cleanupTaskInstances(results); // This might be redundant if sub-functions handle all cases.
+    // Let's rely on the sub-functions for now as they process the instances directly.
 }
 
 /**
  * Saves individual MP3 files from successful task results.
- * @param {Array<SocketEdgeTTS|null>} results - Array of task instances.
+ * Assumes input array contains only successful instances.
+ * @param {Array<SocketEdgeTTS>} successfulResults - Array of successful task instances.
  * @param {string} baseFilename - Base name for files.
  */
-async function saveIndividualFiles_Pipeline(results, baseFilename) {
+async function saveIndividualFiles_Pipeline(successfulResults, baseFilename) {
     let savedCount = 0;
-    for (let i = 0; i < results.length; i++) {
-        const instance = results[i];
-        // Check if instance exists, completed successfully (mp3_saved), and has data
-        if (instance && instance.mp3_saved && instance.my_uint8Array && instance.my_uint8Array.length > 0) {
+    for (const instance of successfulResults) {
+        // No need to re-check instance.mp3_saved here if the input is guaranteed
             const audioBlob = new Blob([instance.my_uint8Array.buffer], { type: 'audio/mpeg' });
-            // Use the filenum stored in the instance
             const filename = `${baseFilename}_part_${instance.my_filenum}.mp3`;
             console.log(`Saving individual file: ${filename}`);
             instance.update_stat("Saving..."); // Update status before saveAs
@@ -395,20 +483,14 @@ async function saveIndividualFiles_Pipeline(results, baseFilename) {
                 saveAs(audioBlob, filename); // FileSaver.js
                 instance.update_stat("Download Started");
                 savedCount++;
-                // Delay clearing slightly to ensure status update is visible
-                await sleep(50);
+            await sleep(50); // Delay clearing slightly
             } catch (e) {
                 console.error(`Error initiating download for ${filename}:`, e);
                 instance.update_stat("Error Downloading");
             } finally {
                  // Clear instance regardless of save success/failure after processing
                  instance.clear();
-                 results[i] = null; // Nullify in the array after processing
-            }
-        } else if (instance) {
-            // If instance exists but failed or has no data, just clear it
-            instance.clear();
-            results[i] = null;
+             // No need to nullify in the passed array 'successfulResults'
         }
     }
     console.log(`Attempted to save ${savedCount} individual files.`);
@@ -416,46 +498,47 @@ async function saveIndividualFiles_Pipeline(results, baseFilename) {
 
 /**
  * Merges results into chunks and saves them.
- * @param {Array<SocketEdgeTTS|null>} results - Array of task instances.
+ * Assumes input array contains only successful instances.
+ * @param {Array<SocketEdgeTTS>} successfulResults - Array of successful task instances.
  * @param {string} baseFilename - Base name for files.
  * @param {number} chunkSize - Number of parts per merged file (Infinity for all).
  */
-async function doMerge_Pipeline(results, baseFilename, chunkSize) {
-    const totalParts = results.length;
+async function doMerge_Pipeline(successfulResults, baseFilename, chunkSize) {
+    const totalParts = successfulResults.length;
     if (totalParts === 0) return;
 
+    // Sort results by indexpart to ensure correct order before merging
+    successfulResults.sort((a, b) => a.indexpart - b.indexpart);
+
     const actualChunkSize = chunkSize === Infinity ? totalParts : chunkSize;
-    let mergedCount = 0;
+    let mergedFileCount = 0;
 
     for (let i = 0; i < totalParts; i += actualChunkSize) {
         const chunkStart = i;
-        const chunkEnd = Math.min(chunkStart + actualChunkSize - 1, totalParts - 1);
+        const chunkEnd = Math.min(chunkStart + actualChunkSize, totalParts); // Use exclusive end index for slice
+        const chunkInstances = successfulResults.slice(chunkStart, chunkEnd);
+
+        if (chunkInstances.length === 0) continue; // Should not happen with successfulResults, but check anyway
 
         let combinedLength = 0;
         const partsInChunk = [];
-        const indicesInChunk = [];
+        const indicesProcessed = []; // Keep track of original indices if needed, though less critical now
 
-        // Collect valid audio data from the current chunk
-        for (let j = chunkStart; j <= chunkEnd; j++) {
-            const instance = results[j];
-            if (instance && instance.mp3_saved && instance.my_uint8Array && instance.my_uint8Array.length > 0) {
+        // Collect audio data from the current chunk
+        for (const instance of chunkInstances) {
+            // No need to re-check instance.mp3_saved
                 partsInChunk.push(instance.my_uint8Array);
                 combinedLength += instance.my_uint8Array.length;
-                indicesInChunk.push(j); // Keep track of original indices
+            indicesProcessed.push(instance.indexpart); // Store original index
                 instance.update_stat("Merging..."); // Update status
-            } else {
-                 console.warn(`Skipping part ${j + 1} in merge chunk (failed or no data).`);
-                 // Ensure failed/skipped parts are cleared if they exist
-                 if(instance) {
-                     instance.clear();
-                     results[j] = null;
-                 }
-            }
         }
 
         // If data was collected for this chunk, combine and save
         if (partsInChunk.length > 0 && combinedLength > 0) {
-            console.log(`Combining audio for merge chunk: Parts ${chunkStart + 1} to ${chunkEnd + 1}`);
+            const firstPartNum = chunkInstances[0].my_filenum; // Get file number of the first part in the chunk
+            const lastPartNum = chunkInstances[chunkInstances.length - 1].my_filenum; // Get file number of the last part
+
+            console.log(`Combining audio for merge chunk: Parts ${firstPartNum} to ${lastPartNum}`);
             const combinedUint8Array = new Uint8Array(combinedLength);
             let currentPosition = 0;
             for (const partData of partsInChunk) {
@@ -466,36 +549,32 @@ async function doMerge_Pipeline(results, baseFilename, chunkSize) {
             const mergeNum = Math.floor(chunkStart / actualChunkSize) + 1;
             const isSingleFile = actualChunkSize >= totalParts && chunkStart === 0;
 
-            await saveMerge_Pipeline(combinedUint8Array, mergeNum, baseFilename, isSingleFile);
-            mergedCount++;
+            // Pass chunk details for better filename generation if needed
+            await saveMerge_Pipeline(combinedUint8Array, mergeNum, baseFilename, isSingleFile, firstPartNum, lastPartNum, totalParts);
+            mergedFileCount++;
 
-            // Clear the instances that were successfully merged
-            for (const index of indicesInChunk) {
-                 if (results[index]) { // Check if not already cleared
-                     results[index].update_stat("Merged & Saved"); // Or "Download Started" if saveMerge uses saveAs
+            // Clear the instances that were successfully merged in this chunk
+            for (const instance of chunkInstances) {
+                 instance.update_stat("Merged & Saved"); // Or "Download Started"
                      await sleep(10); // Small delay for UI
-                     results[index].clear();
-                     results[index] = null; // Nullify in the array
-                 }
+                 instance.clear();
+                 // No need to nullify in successfulResults array
             }
         } else {
-             console.log(`Skipping merge for chunk ${chunkStart + 1}-${chunkEnd + 1}: No valid parts found.`);
-             // Ensure any remaining instances in this chunk that weren't processed are cleared
-             for (let j = chunkStart; j <= chunkEnd; j++) {
-                 if (results[j]) {
-                     results[j].clear();
-                     results[j] = null;
-                 }
+             // This block should ideally not be reached if input is only successful results
+             console.warn(`Skipping merge for chunk starting at index ${chunkStart}: No valid parts found (unexpected).`);
+             // Clear instances in this chunk just in case
+             for (const instance of chunkInstances) {
+                 instance.clear();
              }
         }
     }
-     console.log(`Attempted to save ${mergedCount} merged files.`);
-     // Final check to clear any remaining instances that might have been missed (e.g., outside loop bounds)
-     results.forEach((instance, index) => {
-         if (instance) {
-             console.warn(`Clearing unprocessed instance at index ${index}`);
+     console.log(`Attempted to save ${mergedFileCount} merged files.`);
+     // Final check: Any instances left in successfulResults? Should be empty now.
+     successfulResults.forEach((instance) => {
+         if (instance && typeof instance.clear === 'function') { // Check if clear exists, indicating it wasn't cleared
+             console.warn(`Clearing unprocessed instance ${instance.indexpart + 1} after merging loop.`);
              instance.clear();
-             results[index] = null;
          }
      });
 }
@@ -506,24 +585,27 @@ async function doMerge_Pipeline(results, baseFilename, chunkSize) {
  * @param {number} mergeNum - The sequential number of this merge chunk.
  * @param {string} baseFilename - Base name for the file.
  * @param {boolean} isSingleFile - True if this merge represents the entire output.
+ * @param {string} firstPartNum - The file number string (e.g., "0001") of the first part in this chunk.
+ * @param {string} lastPartNum - The file number string (e.g., "0050") of the last part in this chunk.
+ * @param {number} totalSuccessfulParts - The total number of parts being merged overall.
  */
-async function saveMerge_Pipeline(combinedData, mergeNum, baseFilename, isSingleFile) {
+async function saveMerge_Pipeline(combinedData, mergeNum, baseFilename, isSingleFile, firstPartNum, lastPartNum, totalSuccessfulParts) {
     const audioBlob = new Blob([combinedData.buffer], { type: 'audio/mpeg' });
     let filename;
 
     if (isSingleFile) {
-        filename = `${baseFilename}.mp3`;
+        // Filename for a single merged file containing all parts
+        filename = `${baseFilename}_${totalSuccessfulParts}-parts.mp3`;
     } else {
-        const paddedMergeNum = mergeNum.toString().padStart(4, '0');
-        filename = `${baseFilename}_part_${paddedMergeNum}.mp3`;
+        // Filename for a chunk, indicating the range of parts included
+        filename = `${baseFilename}_parts_${firstPartNum}-${lastPartNum}.mp3`;
     }
 
     console.log(`Saving merged file: ${filename}`);
 
     try {
         saveAs(audioBlob, filename); // FileSaver.js
-        // Note: Status updates for individual parts were done in doMerge_Pipeline
-        // We could add a final overall status update here if needed.
+        // Status updates for individual parts were done in doMerge_Pipeline
     } catch (e) {
         console.error(`Error initiating download for merged file ${filename}:`, e);
         // How to signal error back to the user effectively here? Alert?
@@ -532,15 +614,3 @@ async function saveMerge_Pipeline(combinedData, mergeNum, baseFilename, isSingle
     // No instances to clear here, handled in the caller (doMerge_Pipeline)
 }
 
-
-// --- Removed Functions (Previously in this file) ---
-// - audioGenerationState (object)
-// - startAudioGeneration_SingleLang
-// - clearOldRun_SingleLang (renamed to resetSingleLanguageUI)
-// - queueNextAudioTask_SingleLang
-// - handleTaskCompletion_SingleLang
-// - saveIndividualFile_SingleLang (replaced by saveIndividualFiles_Pipeline)
-// - updateAudioProgress (replaced by handlePipelineProgress)
-// - checkCompletion_SingleLang (handled by pipeline manager and onComplete)
-// - doMerge_SingleLang (replaced by doMerge_Pipeline)
-// - saveMerge_SingleLang (replaced by saveMerge_Pipeline)

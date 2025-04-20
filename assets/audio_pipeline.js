@@ -28,6 +28,9 @@ class AudioPipelineManager {
      * @param {boolean} config.mergeSettings.enabled - Whether merging is enabled.
      * @param {number} config.mergeSettings.chunkSize - Number of parts per merged file (Infinity for all).
      * @param {HTMLElement} config.statArea - The UI element for status updates.
+     * @param {object} [config.retrySettings={ maxRetries: 20, delay: 5000 }] - Retry configuration for failed tasks.
+     * @param {number} config.retrySettings.maxRetries - Maximum number of retries per task.
+     * @param {number} config.retrySettings.delay - Delay in milliseconds between retries.
      * @param {function(object):void} [config.onProgress] - Callback for progress updates. Receives { processed, failed, total, etaSeconds }.
      * @param {function(object):void} [config.onComplete] - Callback when all tasks finish. Receives { processed, failed, total, results: SocketEdgeTTS[] | null[] }.
      * @param {function(string):void} [config.onError] - Callback for critical pipeline errors. Receives error message.
@@ -40,6 +43,8 @@ class AudioPipelineManager {
         this.baseFilename = config.baseFilename || "Audiobook";
         this.mergeSettings = { enabled: false, chunkSize: Infinity, ...config.mergeSettings };
         this.statArea = config.statArea; // Required for task updates
+        // --- ADDED: Retry Settings ---
+        this.retrySettings = { maxRetries: 20, delay: 5000, ...config.retrySettings }; // Default retries
 
         // --- Callbacks ---
         this.onProgress = config.onProgress;
@@ -73,7 +78,7 @@ class AudioPipelineManager {
             this.status = PipelineStatus.ERROR;
         }
 
-        console.log(`AudioPipelineManager initialized: ${this.totalTasks} tasks, concurrency ${this.concurrencyLimit}`);
+        console.log(`AudioPipelineManager initialized: ${this.totalTasks} tasks, concurrency ${this.concurrencyLimit}, retries ${this.retrySettings.maxRetries}`);
     }
 
     /** Formats the voice name for SSML */
@@ -173,7 +178,8 @@ class AudioPipelineManager {
             baseFilename: this.baseFilename,
             fileNum: fileNum,
             statArea: this.statArea, // Pass statArea ref to the task runner
-            mergeEnabled: this.mergeSettings.enabled, // Pass merge flag (used by SocketEdgeTTS?) - Check if needed by SocketEdgeTTS itself
+            mergeEnabled: this.mergeSettings.enabled, // Pass merge flag
+            retrySettings: this.retrySettings // --- ADDED: Pass retry settings ---
         };
 
         try {
@@ -201,7 +207,7 @@ class AudioPipelineManager {
     /**
      * Handles the completion callback from createAndRunAudioTask.
      * @param {number} completedIndex - The index of the completed task.
-     * @param {boolean} errorOccurred - True if the task failed.
+     * @param {boolean} errorOccurred - True if the task failed (after retries).
      * @param {SocketEdgeTTS | null} instance - The completed SocketEdgeTTS instance (or null if creation failed).
      */
     _handleTaskCompletion(completedIndex, errorOccurred, instance) {
@@ -224,16 +230,9 @@ class AudioPipelineManager {
         // Update counters
         if (errorOccurred) {
             this.failedCount++;
-            // Update status area via the instance if available, otherwise manually
-            if (instance) {
-                // Instance handles its own final error status update via onSocketClose/Error
-                // We might want to ensure a consistent final message here though.
-                this._updateTaskStatus(completedIndex, "Failed"); // Overwrite status
-            } else {
-                this._updateTaskStatus(completedIndex, "Failed (Creation Error)");
-            }
-            // Store null or keep the failed instance? Keep instance for potential inspection by caller.
-            // this.taskInstances[completedIndex] = null; // Option: Nullify failed tasks
+            // Status update is now handled internally by SocketEdgeTTS including retries and final failure
+            // We can ensure a final "Failed" status here if needed, but let's rely on the instance for now.
+            // this._updateTaskStatus(completedIndex, "Failed (After Retries)");
         } else {
             this.processedCount++;
             // Instance should have updated its status to "Completed" or similar via onSocketClose

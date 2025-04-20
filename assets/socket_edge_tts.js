@@ -1,7 +1,8 @@
 ﻿class SocketEdgeTTS {
 	constructor(_indexpart, _filename, _filenum,
-				_voice, _pitch, _rate, _volume, _text,
-				_statArea, /* REMOVED _obj_threads_info */ _save_to_var, _onCompleteOrErrorCallback) { // Removed threads_info
+		_voice, _pitch, _rate, _volume, _text,
+		_statArea, /* REMOVED _obj_threads_info */ _save_to_var,
+		_onCompleteOrErrorCallback, _retrySettings = { maxRetries: 20, delay: 5000 }) { // Added retrySettings
 		this.bytes_data_separator = new TextEncoder().encode("Path:audio\r\n")
 		this.data_separator = new Uint8Array(this.bytes_data_separator)
 
@@ -26,6 +27,12 @@
 		this.onCompleteOrErrorCallback = _onCompleteOrErrorCallback; // Store the callback
 		this.callbackCalled = false; // Ensure callback is called only once
 
+		// --- Retry Logic ---
+		this.maxRetries = _retrySettings.maxRetries;
+		this.retryDelay = _retrySettings.delay;
+		this.currentRetryCount = 0;
+		// --- End Retry Logic ---
+
 		//Start
 		this.start_works()
 	}
@@ -44,10 +51,38 @@
 		// Don't nullify the callback here, might be needed if clear is called before completion in some scenarios
 	}
 
+	// Helper to attempt retry or signal final failure
+	_handleErrorOrRetry(errorContext) {
+		if (this.currentRetryCount < this.maxRetries) {
+			this.currentRetryCount++;
+			const retryMsg = `Error (${errorContext}) - Retrying (${this.currentRetryCount}/${this.maxRetries})...`;
+			console.warn(`Part ${this.indexpart + 1}: ${retryMsg}`);
+			this.update_stat(retryMsg);
+			// Use setTimeout for the delay before restarting
+			setTimeout(() => {
+				// Check if cleared externally before retrying
+				if (this.currentRetryCount <= this.maxRetries) {
+					this.start_works(); // Attempt to restart the process
+				} else {
+					console.log(`Part ${this.indexpart + 1}: Retry cancelled as instance was cleared.`);
+				}
+			}, this.retryDelay);
+		} else {
+			// Retries exhausted, signal final failure
+			const finalErrorMsg = `Failed (${errorContext}) after ${this.maxRetries} retries.`;
+			console.error(`Part ${this.indexpart + 1}: ${finalErrorMsg}`);
+			this.update_stat(finalErrorMsg);
+			this._triggerCallback(true); // Signal final error
+		}
+	}
+
+
 	// Helper to safely call the completion callback once
 	_triggerCallback(error = false) {
 		if (!this.callbackCalled) {
 			this.callbackCalled = true;
+			// Prevent further retries once callback is triggered
+			this.currentRetryCount = this.maxRetries + 1;
 			if (this.onCompleteOrErrorCallback) {
 				// Introduce a small random delay before calling back to stagger next requests slightly
 				const delay = Math.random() * 50; // Random delay up to 50 milliseconds
@@ -112,7 +147,7 @@
 
 	async onSocketMessage(event) {
 		const data = await event.data;
-		if ( typeof data == "string" ) {
+		if (typeof data == "string") {
 			if (data.includes("Path:turn.end")) {
 				this.end_message_received = true;
 				// Process accumulated audio blobs now
@@ -202,13 +237,13 @@
 					let statlines = this.statArea.value.split('\n');
 					// Ensure the line exists before trying to update it
 					if (this.indexpart < statlines.length) {
-						statlines[this.indexpart]= `Part ${(this.indexpart+1).toString().padStart(4, '0')}: ${msg}`;
+						statlines[this.indexpart] = `Part ${(this.indexpart + 1).toString().padStart(4, '0')}: ${msg}`;
 						this.statArea.value = statlines.join('\n');
 						// Optional: Auto-scroll
 						// this.statArea.scrollTop = this.statArea.scrollHeight;
 					} else {
 						// Append if index is out of bounds (shouldn't normally happen with pre-population)
-						this.statArea.value += `\nPart ${(this.indexpart+1).toString().padStart(4, '0')}: ${msg}`;
+						this.statArea.value += `\nPart ${(this.indexpart + 1).toString().padStart(4, '0')}: ${msg}`;
 					}
 				} catch (e) {
 					console.warn("Error updating stat area:", e);
@@ -219,45 +254,56 @@
 
 	onSocketClose(event) {
 		// Determine if the closure was expected (after processing) or unexpected
+		// A clean closure requires 'turn.end' and successfully processed audio data
 		const cleanClosure = this.end_message_received && this.mp3_saved;
 		const errorClosure = !this.end_message_received || !this.mp3_saved;
 
 		if (cleanClosure) {
-			this.update_stat("Completed"); // Final status update
-			this._triggerCallback(false); // Signal successful completion
+			// Only update to "Completed" if it wasn't already marked as failed during processing
+			if (!this.callbackCalled) { // Avoid overwriting a failure status set earlier
+				this.update_stat("Completed"); // Final status update
+			}
+			this._triggerCallback(false); // Signal successful completion (or confirm existing success)
 		} else {
-			// Handle unexpected closure
-			if (!this.callbackCalled) { // Check if callback hasn't been triggered by another error path
-				let reason = `Socket closed unexpectedly (Code: ${event.code}, Reason: ${event.reason || 'No reason given'})`;
-				if (!this.end_message_received) reason += " - Did not receive 'turn.end'.";
-				if (!this.mp3_saved) reason += " - Audio data not processed.";
+			// Handle unexpected closure only if a final callback hasn't been made yet
+			if (!this.callbackCalled) {
+				let reason = `Connection Closed (Code: ${event.code}, Reason: ${event.reason || 'No reason'})`;
+				if (!this.end_message_received) reason += " - No 'turn.end'.";
+				if (!this.mp3_saved) reason += " - Audio not saved.";
 				console.warn(`Part ${this.indexpart + 1}: ${reason}`);
-				this.update_stat("Error - Connection Closed");
-				this._triggerCallback(true); // Signal error
+				// Attempt retry or signal final failure
+				this._handleErrorOrRetry("Connection Closed");
 			}
 		}
 		// Resources are cleaned up via _triggerCallback -> caller -> clearOldRun/part.clear()
 	}
 
 	start_works() {
-		if (this.callbackCalled) {
-			console.warn(`Part ${this.indexpart + 1}: Attempted to start_works after callback was already called.`);
-			return; // Prevent restarting if already completed/failed
-		}
-		// Reset state variables relevant for a new attempt (if retrying externally)
+		// Reset state variables relevant for a new attempt (needed for retries)
 		this.my_uint8Array = new Uint8Array(0);
 		this.audios = [];
 		this.mp3_saved = false;
 		this.end_message_received = false;
-		// this.callbackCalled = false; // Resetting this might be needed if retries are implemented externally
+		// DO NOT reset this.currentRetryCount here, it tracks retries for the instance lifecycle
+		// DO NOT reset this.callbackCalled here, it prevents multiple final callbacks
 
-		this.update_stat("Initializing");
+		// Update status based on whether this is the first attempt or a retry
+		const initialMessage = this.currentRetryCount === 0 ? "Initializing" : `Retrying (${this.currentRetryCount}/${this.maxRetries})...`;
+		this.update_stat(initialMessage);
+
 		if ("WebSocket" in window) {
 			try {
 				// Ensure previous socket is closed before creating a new one
 				if (this.socket && this.socket.readyState < 2) {
+					// Remove listeners before closing to prevent triggering onSocketClose for the old socket during retry setup
+					this.socket.removeEventListener('open', this.onSocketOpen);
+					this.socket.removeEventListener('message', this.onSocketMessage);
+					this.socket.removeEventListener('close', this.onSocketClose);
+					this.socket.removeEventListener('error', this.onSocketError); // Use bound handler
 					this.socket.close();
 				}
+				this.socket = null; // Ensure socket is nullified before creating a new one
+
 				this.socket = new WebSocket(
 					"wss://speech.platform.bing.com/consumer/speech/synthesize/" +
 					"readaloud/edge/v1?TrustedClientToken=" +
@@ -265,23 +311,34 @@
 					"&ConnectionId=" + this.connect_id()
 				);
 				this.socket.binaryType = 'blob'; // Ensure we receive blobs
+				// Bind event listeners correctly
 				this.socket.addEventListener('open', this.onSocketOpen.bind(this));
 				this.socket.addEventListener('message', this.onSocketMessage.bind(this));
 				this.socket.addEventListener('close', this.onSocketClose.bind(this));
-				this.socket.addEventListener('error', (event) => { // Add explicit error handler
-					console.error(`WebSocket Error for part ${this.indexpart + 1}:`, event);
-					this.update_stat("Error - WebSocket Failed");
-					this._triggerCallback(true); // Signal error on WebSocket error event
-				});
+				// Add explicit error handler, bind it
+				this.socket.addEventListener('error', this.onSocketError.bind(this)); // Bind the error handler
+
 			} catch (error) {
 				console.error(`Error creating WebSocket for part ${this.indexpart + 1}:`, error);
-				this.update_stat("Error: WebSocket Creation Failed");
-				this._triggerCallback(true); // Signal error immediately
+				// Attempt retry or signal final failure
+				this._handleErrorOrRetry("WebSocket Creation Failed");
 			}
 		} else {
 			console.error("WebSocket NOT supported by your Browser!");
 			this.update_stat("Error: WebSocket Not Supported");
-			this._triggerCallback(true); // Signal error immediately
+			this._triggerCallback(true); // Signal error immediately, no retry possible
+		}
+	}
+
+	// Bound WebSocket error handler
+	onSocketError(event) {
+		// Check if a callback has already been triggered (e.g., by onSocketClose)
+		if (!this.callbackCalled) {
+			console.error(`WebSocket Error for part ${this.indexpart + 1}:`, event);
+			// Attempt retry or signal final failure
+			this._handleErrorOrRetry("WebSocket Error");
+		} else {
+			console.warn(`WebSocket Error for part ${this.indexpart + 1} occurred after completion callback was already triggered.`, event);
 		}
 	}
 
@@ -302,7 +359,7 @@
 	}
 
 	connect_id() {
-		const uuid = 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, function(c) {
+		const uuid = 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, function (c) {
 			const r = (Math.random() * 16) | 0;
 			const v = c == 'x' ? r : (r & 0x3) | 0x8;
 			return v.toString(16);
@@ -323,18 +380,18 @@
 	}
 
 	findIndex(uint8Array, separator) {
-	  for (let i = 0; i < uint8Array.length - separator.length + 1; i++) {
-		let found = true;
-		for (let j = 0; j < separator.length; j++) {
-		  if (uint8Array[i + j] !== separator[j]) {
-			found = false;
-			break;
-		  }
+		for (let i = 0; i < uint8Array.length - separator.length + 1; i++) {
+			let found = true;
+			for (let j = 0; j < separator.length; j++) {
+				if (uint8Array[i + j] !== separator[j]) {
+					found = false;
+					break;
+				}
+			}
+			if (found) {
+				return i;
+			}
 		}
-		if (found) {
-		  return i;
-		}
-	  }
-	  return -1;
+		return -1;
 	}
 }

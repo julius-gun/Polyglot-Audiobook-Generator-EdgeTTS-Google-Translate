@@ -13,6 +13,7 @@
  * @param {string} taskConfig.fileNum - The file number string (e.g., "0001").
  * @param {HTMLElement} taskConfig.statArea - The status display area.
  * @param {boolean} taskConfig.mergeEnabled - Whether merging is intended (passed to SocketEdgeTTS).
+ * @param {object} taskConfig.retrySettings - Retry configuration object.
  * @param {function(number, boolean, SocketEdgeTTS)} completionCallback - Called when the task finishes or fails.
  *                                      Provides (index, errorOccurred, instance).
  * @returns {SocketEdgeTTS} The created SocketEdgeTTS instance.
@@ -35,7 +36,8 @@ function createAndRunAudioTask(taskConfig, completionCallback) {
         (completedIndex, errorOccurred) => {
             // Pass the instance itself along with index and error status
             completionCallback(completedIndex, errorOccurred, ttsInstance);
-        }
+        },
+        taskConfig.retrySettings // --- ADDED: Pass retry settings to constructor ---
     );
     // Note: SocketEdgeTTS constructor now calls start_works() internally
 
