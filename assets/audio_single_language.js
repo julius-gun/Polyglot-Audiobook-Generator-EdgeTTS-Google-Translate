@@ -137,7 +137,6 @@ async function generateSingleLanguageAudiobook() {
         progressInfo.style.display = 'block';
         progressInfo.innerHTML = `<span>Processed: 0 / 0</span> | <span>ETA: Calculating...</span>`; // TODO: Translate
     }
-    if (advancedSettingsContainer) advancedSettingsContainer.classList.remove('hide');
 
     // Hide bilingual-specific buttons/messages
     document.getElementById('open-book-view-button')?.classList.add('hide');
