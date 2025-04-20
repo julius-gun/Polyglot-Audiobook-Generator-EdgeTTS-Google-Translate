@@ -17,103 +17,141 @@ function setLanguage(lang) {
 //Function to translate static UI elements
 async function translateUIElements() {
   const uiElements = {
-    pageTitle: document.querySelector('h1'),
-    sourceLabel: document.querySelector('#sl-container label'),
-    targetLabel1: document.querySelector('#tl1-container label'),
-    targetLabel2: document.querySelector('#tl2-container label'),
-    targetLabel3: document.querySelector('#tl3-container label'),
-    targetLabel4: document.querySelector('#tl4-container label'),
-    enterText: document.querySelector('#source-text'),
-    generateButton: document.querySelector('#generate-button'),
-    insertFileButton: document.getElementById('insert-file-button'),
-    translatedSpan: document.querySelector('#progress-info span:first-child'), // Might be null initially
-    etaSpan: document.querySelector('#progress-info span:last-child'), // Might be null initially
-    uiLanguageLabel: document.querySelector('#ui-language-label span:last-child'),
-    openBookViewButton: document.querySelector('#open-book-view-button'),
-    saveEpubButton: document.querySelector('#save-epub-button'),
-    reloadPageButton: document.querySelector('#reload-page-button'),
-    translationFinishedMessage: document.querySelector('#translation-finished-message'),
-    enterSourceTextLabel: document.querySelector('h3'),
-    headerLanguageLabel: document.querySelector('#header-language-label'),
-    headerVoiceLabel: document.querySelector('#header-voice-label'),
-    // Added elements
-    slRateLabel: document.querySelector('#sl-container label[for="sl-rate"]'),
-    slPitchLabel: document.querySelector('#sl-container label[for="sl-pitch"]'),
-    tl1RateLabel: document.querySelector('#tl1-container label[for="tl1-rate"]'),
-    tl1PitchLabel: document.querySelector('#tl1-container label[for="tl1-pitch"]'),
-    tl2RateLabel: document.querySelector('#tl2-container label[for="tl2-rate"]'),
-    tl2PitchLabel: document.querySelector('#tl2-container label[for="tl2-pitch"]'),
-    tl3RateLabel: document.querySelector('#tl3-container label[for="tl3-rate"]'),
-    tl3PitchLabel: document.querySelector('#tl3-container label[for="tl3-pitch"]'),
-    tl4RateLabel: document.querySelector('#tl4-container label[for="tl4-rate"]'),
-    tl4PitchLabel: document.querySelector('#tl4-container label[for="tl4-pitch"]'),
+    // Header & General
+    pageTitle: document.getElementById('page-title'),
+    settingsButtonTitle: document.getElementById('settings-button'), // Attribute: title
+    uiLanguageText: document.getElementById('ui-language-text'), // Span inside label
+    headerLanguageLabel: document.getElementById('header-language-label'),
+    headerVoiceLabel: document.getElementById('header-voice-label'),
+    // Source Language
+    slLabel: document.getElementById('sl-label'),
+    slRateLabel: document.getElementById('sl-rate-label'),
+    slPitchLabel: document.getElementById('sl-pitch-label'),
+    // Target Languages
+    tl1Label: document.getElementById('tl1-label'),
+    tl1RateLabel: document.getElementById('tl1-rate-label'),
+    tl1PitchLabel: document.getElementById('tl1-pitch-label'),
+    tl2Label: document.getElementById('tl2-label'),
+    tl2RateLabel: document.getElementById('tl2-rate-label'),
+    tl2PitchLabel: document.getElementById('tl2-pitch-label'),
+    tl3Label: document.getElementById('tl3-label'),
+    tl3RateLabel: document.getElementById('tl3-rate-label'),
+    tl3PitchLabel: document.getElementById('tl3-pitch-label'),
+    tl4Label: document.getElementById('tl4-label'),
+    tl4RateLabel: document.getElementById('tl4-rate-label'),
+    tl4PitchLabel: document.getElementById('tl4-pitch-label'),
+    // Advanced Settings
     advancedAudioSettingsTitle: document.getElementById('advanced-audio-settings-title'),
-    threadsLabel: document.querySelector('#div-threads label[for="max-threads"]'),
-    mergeByLabel: document.querySelector('#div-mergefiles label[for="mergefiles"]'),
-    statAreaPlaceholder: document.getElementById('stat-area'), // Placeholder
-    settingsButtonTitle: document.getElementById('settings-button'), // Title attribute
-    // Firefox Warning elements
-    firefoxWarningTitle: document.querySelector('#firefox-warning strong'),
-    firefoxWarningBody: document.querySelector('#firefox-warning'), // Target the div itself for the main text
+    threadsLabel: document.getElementById('threads-label'),
+    mergeByLabel: document.getElementById('merge-by-label'),
+    insertFileButton: document.getElementById('insert-file-button'),
+    // Text Area & Buttons
+    enterSourceTextLabel: document.getElementById('enter-source-text-label'),
+    enterText: document.getElementById('source-text'), // Attribute: placeholder
+    generateButton: document.getElementById('generate-button'),
+    openBookViewButton: document.getElementById('open-book-view-button'),
+    saveEpubButton: document.getElementById('save-epub-button'),
+    reloadPageButton: document.getElementById('reload-page-button'),
+    // Progress & Status
+    progressTranslatedLabel: document.getElementById('progress-translated-label'), // Label part
+    progressEtaLabel: document.getElementById('progress-eta-label'), // Label part
+    progressEtaValue: document.getElementById('progress-eta-value'), // Value part (for Calculating...)
+    translationFinishedMessage: document.getElementById('translation-finished-message'),
+    statAreaPlaceholder: document.getElementById('stat-area'), // Attribute: placeholder
+    // Firefox Warning
+    firefoxWarningTitle: document.getElementById('firefox-warning-title'),
+    firefoxWarningBody: document.getElementById('firefox-warning-body'),
   };
 
   // Helper to get translation, falling back to English
-  const getTranslation = async (key) => {
-    const englishText = translations.en[key];
-    if (!englishText) return `[${key}]`; // Return key if not found in English
+  const getTranslation = async (key, fallbackKey = null) => {
+    // Use fallbackKey if provided and the primary key doesn't exist in English
+    const primaryKeyExists = translations.en.hasOwnProperty(key);
+    const effectiveKey = primaryKeyExists ? key : (fallbackKey && translations.en.hasOwnProperty(fallbackKey) ? fallbackKey : key);
+    const englishText = translations.en[effectiveKey];
+
+    if (englishText === undefined) { // Check for undefined specifically
+        console.warn(`Translation key "${effectiveKey}" not found in en translations.`);
+        return `[${effectiveKey}]`; // Return key if not found in English
+    }
+    // fetchTranslation is defined in translation_api.js
     return await fetchTranslation(englishText, currentLanguage);
   };
 
   for (const key in uiElements) {
-    // Check if the key exists in the base English translations
-    if (uiElements.hasOwnProperty(key) && translations.en[key]) {
+    if (uiElements.hasOwnProperty(key)) {
       const element = uiElements[key];
       if (element) {
-        const englishText = translations['en'][key];
-        // Fetch translation for the UI element text itself
-        // Depends on: fetchTranslation (translation_api.js), currentLanguage (global), translations (global)
-        const translatedText = await getTranslation(key);
+        let translatedText;
 
-        if (key === 'enterText' || key === 'statAreaPlaceholder') {
-          element.placeholder = translatedText;
-        } else if (key === 'settingsButtonTitle') {
+        // Handle specific keys/attributes
+        if (key === 'settingsButtonTitle') {
+          translatedText = await getTranslation('titleSettingsButton');
           element.title = translatedText;
-        } else if (key === 'translatedSpan') {
-          // Special handling for progress info - needs translated "Translated" word
-          const translatedWord = await getTranslation('translated'); // Use helper
-          const currentProgressText = element.textContent || '';
-          const numbersMatch = currentProgressText.match(/(\d+)\s*\/\s*(\d+)/);
-          const currentTranslated = numbersMatch ? numbersMatch[1] : '0';
-          const currentTotal = numbersMatch ? numbersMatch[2] : '0';
-          element.textContent = `${translatedWord}: ${currentTranslated} / ${currentTotal}`;
-        } else if (key === 'etaSpan') {
-          // Special handling for progress info - needs translated "ETA" word
-          const translatedWord = await getTranslation('eta'); // Use helper
-          const currentEtaText = element.textContent || '';
-          const timeMatch = currentEtaText.split(': ')[1];
-          const calculatingText = await getTranslation('statusCalculating'); // Translate "Calculating..."
-          const currentTime = timeMatch ? timeMatch : calculatingText;
-          element.textContent = `${translatedWord}: ${currentTime}`;
-        } else if (key === 'uiLanguageLabel') {
-          const translatedWord = await getTranslation('uiLanguage'); // Use helper
-          element.textContent = `${translatedWord}:`;
+        } else if (key === 'enterText' || key === 'statAreaPlaceholder') {
+          translatedText = await getTranslation(key);
+          element.placeholder = translatedText;
+        } else if (key === 'progressTranslatedLabel') {
+          translatedText = await getTranslation('translated');
+          element.textContent = translatedText;
+        } else if (key === 'progressEtaLabel') {
+          translatedText = await getTranslation('eta');
+          element.textContent = translatedText;
+        } else if (key === 'progressEtaValue') {
+          // Only set initial "Calculating..." text if the value is currently empty or also "Calculating..."
+          const calculatingText = await getTranslation('statusCalculating');
+          if (!element.textContent || element.textContent === calculatingText) {
+             element.textContent = calculatingText;
+          }
         } else if (key === 'firefoxWarningBody') {
-          // For the warning body, we need to preserve the <strong> tag
-          const titleText = await getTranslation('firefoxWarningTitle');
-          element.innerHTML = `<strong>${titleText}</strong> ${translatedText}`; // Reconstruct with translated parts
-        } else if (key !== 'firefoxWarningTitle') { // Skip title as it's handled above
-          // For buttons, labels, titles, headers etc.
+          // Special handling to keep the structure
+          const bodyText = await getTranslation('firefoxWarningBody');
+          element.textContent = bodyText; // Set only the body text here
+        } else if (key === 'slRateLabel' || key === 'tl1RateLabel' || key === 'tl2RateLabel' || key === 'tl3RateLabel' || key === 'tl4RateLabel') {
+          translatedText = await getTranslation('labelRate');
+          element.textContent = translatedText;
+        } else if (key === 'slPitchLabel' || key === 'tl1PitchLabel' || key === 'tl2PitchLabel' || key === 'tl3PitchLabel' || key === 'tl4PitchLabel') {
+          translatedText = await getTranslation('labelPitch');
+          element.textContent = translatedText;
+        // **** START CHANGE ****
+        } else if (key === 'uiLanguageText') { // <<< ADD THIS ELSE IF BLOCK
+          // Use the correct translation key 'uiLanguage' for the element mapped by 'uiLanguageText'
+          translatedText = await getTranslation('uiLanguage');
+          element.textContent = translatedText + ':'; // Add the colon back
+        // **** END CHANGE ****
+        } else {
+          // Default: Set textContent for labels, buttons, headers, etc.
+          // Use specific keys where needed (e.g., sourceLabel for slLabel element)
+          let translationKey = key;
+          if (key === 'slLabel') translationKey = 'sourceLabel';
+          else if (key === 'tl1Label') translationKey = 'targetLabel1';
+          else if (key === 'tl2Label') translationKey = 'targetLabel2';
+          else if (key === 'tl3Label') translationKey = 'targetLabel3';
+          else if (key === 'tl4Label') translationKey = 'targetLabel4';
+          else if (key === 'threadsLabel') translationKey = 'labelThreads';
+          else if (key === 'mergeByLabel') translationKey = 'labelMergeBy';
+          // Add other specific mappings if element ID doesn't match translation key directly
+
+          translatedText = await getTranslation(translationKey);
           element.textContent = translatedText;
         }
       } else {
-        // console.warn(`UI element not found for key: ${key}`); // Optional warning
+         // console.warn(`UI element not found for key: ${key}`); // Optional warning
       }
     }
   }
+
+  // Update slider text values separately as they depend on current value + translation
+  document.querySelectorAll('.mergefiles').forEach(async slider => {
+      const valueSpan = slider.closest('.slider-container')?.querySelector('.merge-value');
+      if (valueSpan) {
+          const value = slider.value;
+          const allText = await getTranslation('textAll');
+          const pcsText = await getTranslation('textPieces');
+          valueSpan.textContent = value == 100 ? allText : `${value} ${pcsText}`;
+      }
+  });
 }
-// Add keys for Rate/Pitch labels
-translations.en.labelRate = 'Rate:';
-translations.en.labelPitch = 'Pitch:';
 
 
 // NEW: Function to rebuild language and voice dropdowns
@@ -374,5 +412,3 @@ function displayTranslatedBatch(batch, translationsData, sourceLang, targetLangs
     bookContainer.appendChild(paragraph);
   }
 }
-
-
