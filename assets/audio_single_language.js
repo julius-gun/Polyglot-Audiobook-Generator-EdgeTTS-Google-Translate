@@ -2,7 +2,7 @@
 
 // Depends on:
 // - Functions:
-//   - splitIntoSentences, mergeShortSentences (translation_utils.js)
+//   - splitIntoSentences, mergeShortSentences, sleep (translation_utils.js)
 //   - formatTime (ui_helpers.js)
 // - Classes: SocketEdgeTTS (socket_edge_tts.js)
 // - UI Elements: source-text, sl-voice, sl-rate, sl-pitch, max-threads, mergefiles,
@@ -27,7 +27,7 @@ let audioGenerationState = {
 
 // --- Main Function ---
 async function generateSingleLanguageAudiobook() {
-    console.log("Starting Single Language Audiobook Generation Process...");
+    console.log("--- generateSingleLanguageAudiobook START ---"); // Log start
 
     // 1. Get UI elements
     const sourceTextArea = document.getElementById('source-text');
@@ -43,10 +43,21 @@ async function generateSingleLanguageAudiobook() {
     const bookContainer = document.getElementById('output');
     const advancedSettingsContainer = document.getElementById('advanced-audio-settings');
 
+    // *** ADDED: Log element existence ***
+    console.log("Element Check:", {
+        statArea: !!statArea,
+        progressContainer: !!progressContainer,
+        progressBar: !!progressBar,
+        progressInfo: !!progressInfo,
+        advancedSettingsContainer: !!advancedSettingsContainer
+    });
+
+
     // 2. Get and validate source text
     const sourceText = sourceTextArea?.value;
     if (!sourceText || sourceText.trim() === "") {
         alert("Please enter some source text before generating audio."); // TODO: Use translated alert
+        console.log("--- generateSingleLanguageAudiobook END (No source text) ---");
         return;
     }
 
@@ -59,6 +70,7 @@ async function generateSingleLanguageAudiobook() {
 
     if (!voice) {
         alert("Please select a source language voice."); // TODO: Use translated alert
+        console.log("--- generateSingleLanguageAudiobook END (No voice selected) ---");
         return;
     }
 
@@ -69,21 +81,36 @@ async function generateSingleLanguageAudiobook() {
     const mergeEnabled = mergeValue > 1;
     const mergeChunkSize = mergeValue === 100 ? Infinity : mergeValue; // Use Infinity for ALL
 
-    // 4. Prepare UI
-    if (bookContainer) bookContainer.innerHTML = ''; // Clear bilingual output
+    // 4. Prepare UI (Initial attempt before clearing old run)
+    console.log("Preparing UI for single language audio (Attempt 1)...");
+    if (bookContainer) bookContainer.innerHTML = '';
     if (statArea) {
+        console.log("Attempting to show statArea (1). Current classes:", statArea.className, "Current display:", statArea.style.display);
         statArea.value = "Initializing audio generation...\n";
-        statArea.classList.remove('hide'); // Make sure stat area is visible
-        statArea.style.display = 'block'; // Explicitly set display style
+        statArea.classList.remove('hide');
+        statArea.style.display = 'block';
+        console.log("After showing statArea (1). New classes:", statArea.className, "New display:", statArea.style.display);
+    } else {
+        console.warn("Stat area element ('#stat-area') not found.");
     }
-    if (progressContainer) progressContainer.style.display = 'block';
+    if (progressContainer) {
+        console.log("Attempting to show progressContainer (1). Current display:", progressContainer.style.display);
+        progressContainer.style.display = 'block';
+        console.log("After showing progressContainer (1). New display:", progressContainer.style.display);
+    } else {
+        console.warn("Progress container element ('#progress-container') not found.");
+    }
     if (progressBar) {
         progressBar.style.width = '0%';
         progressBar.textContent = '0%';
     }
     if (progressInfo) {
+        console.log("Attempting to show progressInfo (1). Current display:", progressInfo.style.display);
         progressInfo.style.display = 'block';
-        progressInfo.innerHTML = `<span>Processed: 0 / 0</span> | <span>ETA: Calculating...</span>`; // TODO: Translate
+        console.log("After showing progressInfo (1). New display:", progressInfo.style.display);
+        progressInfo.innerHTML = `<span>Processed: 0 / 0</span> | <span>ETA: Calculating...</span>`;
+    } else {
+        console.warn("Progress info element ('#progress-info') not found.");
     }
     // Show advanced settings container in single language mode
     if (advancedSettingsContainer) {
@@ -100,8 +127,30 @@ async function generateSingleLanguageAudiobook() {
     // Consider keeping reload/cancel button? Maybe rename it.
     // document.getElementById('reload-page-button')?.classList.add('hide');
 
-    // 5. Initialize state
+    // 5. Initialize state (Calls clearOldRun_SingleLang which hides elements)
+    console.log("Initializing state (will call clearOldRun_SingleLang)...");
     clearOldRun_SingleLang(); // Reset state variables
+    console.log("State cleared by clearOldRun_SingleLang.");
+
+    // *** RE-APPLY UI VISIBILITY AFTER clearOldRun_SingleLang ***
+    console.log("Re-applying UI visibility after clearOldRun_SingleLang...");
+    if (statArea) {
+        statArea.classList.remove('hide');
+        statArea.style.display = 'block';
+        statArea.value = "Processing text...\n"; // Update initial message
+        console.log("Re-applied statArea visibility. Classes:", statArea.className, "Display:", statArea.style.display);
+    }
+    if (progressContainer) {
+        progressContainer.style.display = 'block';
+        console.log("Re-applied progressContainer visibility. Display:", progressContainer.style.display);
+    }
+     if (progressInfo) {
+        progressInfo.style.display = 'block';
+        progressInfo.innerHTML = `<span>Processed: 0 / 0</span> | <span>ETA: Calculating...</span>`;
+        console.log("Re-applied progressInfo visibility. Display:", progressInfo.style.display);
+    }
+    // *** END RE-APPLY ***
+
     audioGenerationState.run_work = true;
     audioGenerationState.threads_info.max = maxThreads;
     audioGenerationState.threads_info.count = 0; // Reset active count
@@ -117,12 +166,15 @@ async function generateSingleLanguageAudiobook() {
 
     // 6. Process text (Using translation_utils for simplicity)
     // TODO: Re-evaluate if ProcessingFile logic is needed for better chunking (like script.js had)
+    console.log("Processing text...");
+
     const sentences = splitIntoSentences(sourceText);
     audioGenerationState.audio_sentences = mergeShortSentences(sentences); // Use merged sentences
 
     if (audioGenerationState.audio_sentences.length === 0) {
         alert("Could not split the text into processable sentences."); // TODO: Translate
         clearOldRun_SingleLang(); // Clean up UI
+        console.log("--- generateSingleLanguageAudiobook END (No sentences) ---");
         return;
     }
 
@@ -137,12 +189,20 @@ async function generateSingleLanguageAudiobook() {
         });
         // Ensure scroll is at the top initially
         statArea.scrollTop = 0;
+        console.log("Populated statArea with parts.");
     }
     // Update progress info total
     updateAudioProgress(); // Initial update with total count
+    console.log("Updated initial progress.");
+
+    // *** Brief delay to allow UI repaint (keeping just in case) ***
+    console.log("Waiting briefly for UI update...");
+    await sleep(20); // Give the browser ~20ms to render the UI changes
 
     // 7. Start the process directly
+    console.log("Starting audio generation process...");
     startAudioGeneration_SingleLang(voice, rate, pitch);
+    console.log("--- generateSingleLanguageAudiobook END (Started generation) ---");
 }
 
 // --- Helper Functions ---
@@ -163,7 +223,7 @@ function startAudioGeneration_SingleLang(voice, rate, pitch) {
 }
 
 function clearOldRun_SingleLang() {
-    console.log("Clearing old run state...");
+    console.log("--- clearOldRun_SingleLang START ---"); // Log start
     audioGenerationState.run_work = false;
     // Ensure all sockets are closed and instances cleared
     audioGenerationState.parts_book.forEach(part => part?.clear());
@@ -188,23 +248,32 @@ function clearOldRun_SingleLang() {
     const advancedSettingsContainer = document.getElementById('advanced-audio-settings');
 
     if (statArea) {
+        console.log("clearOldRun: Hiding statArea. Current classes:", statArea.className, "Current display:", statArea.style.display);
         statArea.value = "";
         statArea.classList.add('hide');
         statArea.style.display = 'none'; // Ensure hidden
+        console.log("clearOldRun: After hiding statArea. New classes:", statArea.className, "New display:", statArea.style.display);
     }
-     if (progressContainer) progressContainer.style.display = 'none';
+     if (progressContainer) {
+         console.log("clearOldRun: Hiding progressContainer. Current display:", progressContainer.style.display);
+         progressContainer.style.display = 'none';
+         console.log("clearOldRun: After hiding progressContainer. New display:", progressContainer.style.display);
+     }
      if (progressBar) {
          progressBar.style.width = '0%';
          progressBar.textContent = '0%';
      }
      if (progressInfo) {
+         console.log("clearOldRun: Hiding progressInfo. Current display:", progressInfo.style.display);
          progressInfo.style.display = 'none';
          progressInfo.innerHTML = '';
+         console.log("clearOldRun: After hiding progressInfo. New display:", progressInfo.style.display);
      }
      // Hide advanced settings when clearing
      if (advancedSettingsContainer) {
          advancedSettingsContainer.classList.add('hide');
      }
+     console.log("--- clearOldRun_SingleLang END ---"); // Log end
 }
 
 // Renamed from addEdgeTTS_SingleLang to better reflect its role
@@ -373,6 +442,8 @@ function updateAudioProgress() {
     if (progressBar) {
         progressBar.style.width = percent + '%';
         progressBar.textContent = percent + '%';
+    } else {
+        // console.warn("updateAudioProgress: progressBar not found."); // Reduce noise, only log once if needed
     }
 
     if (progressInfo) {
@@ -396,6 +467,8 @@ function updateAudioProgress() {
             ${audioGenerationState.failed_parts_count > 0 ? `<span>Failed: ${audioGenerationState.failed_parts_count}</span> |` : ''}
             <span>ETA: ${etaString}</span>
         `;
+    } else {
+        // console.warn("updateAudioProgress: progressInfo not found."); // Reduce noise
     }
 }
 
