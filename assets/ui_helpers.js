@@ -3,6 +3,25 @@
 // Depends on:
 // - Globals: currentLanguage (main.js), translations (ui_translations.js)
 
+/**
+ * Simple string formatting function. Replaces placeholders like {0}, {1} with arguments.
+ * Example: formatString("Hello {0}, you have {1} messages.", "User", 5)
+ *          // Output: "Hello User, you have 5 messages."
+ * @param {string} str The string template.
+ * @param {...*} args Values to substitute into the template.
+ * @returns {string} The formatted string.
+ */
+function formatString(str, ...args) {
+    if (!str) return ''; // Handle null or empty string input
+    return str.replace(/{(\d+)}/g, (match, number) => {
+        return typeof args[number] !== 'undefined'
+            ? args[number]
+            : match // Keep original placeholder if argument is missing
+        ;
+    });
+}
+
+
 function formatTime(milliseconds) {
     if (!isFinite(milliseconds) || milliseconds < 0) {
       return 'N/A'; // Or 'Calculating...' or similar
