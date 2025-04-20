@@ -397,12 +397,19 @@ button:hover,
 
 /* Specific style for settings button */
 .settings-button {
-    padding: 5px 10px; /* Slightly smaller padding */
+    /* Removed padding: 5px 10px; */
+    padding: 0; /* Set padding to 0 for flex centering */
     font-size: 1.2rem; /* Make icon slightly larger */
     height: 30px; /* Smaller height */
     width: 30px; /* Make it square-ish */
-    line-height: 20px; /* Adjust line height for vertical centering */
+    /* Removed line-height: 20px; */
     margin-right: 5px; /* Add some space between it and the label */
+    /* Added Flexbox for centering */
+    display: flex;
+    align-items: center; /* Vertical centering */
+    justify-content: center; /* Horizontal centering */
+    /* Ensure align-self from the general button style doesn't interfere if needed */
+    /* align-self: center; /* Already inherited */
 }
 
 
