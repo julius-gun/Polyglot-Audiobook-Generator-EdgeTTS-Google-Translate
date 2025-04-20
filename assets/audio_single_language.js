@@ -10,6 +10,9 @@
 //                output, open-book-view-button, save-epub-button, translation-finished-message,
 //                reload-page-button, advanced-audio-settings
 
+// --- Configuration ---
+const TARGET_CHUNK_LENGTH = 3200; // Target character length for audio chunks
+
 // --- State Management (scoped within the generation process) ---
 let audioGenerationState = {
     run_work: false,
@@ -24,6 +27,52 @@ let audioGenerationState = {
     merge_chunk_size: Infinity, // Default to ALL (Infinity)
     base_filename: "Audiobook", // Default filename base
 };
+
+// --- NEW FUNCTION: Chunk Text for Audio ---
+/**
+ * Splits text into sentences and then combines them into larger chunks
+ * suitable for TTS processing, aiming for a target character length.
+ * @param {string} text The input text.
+ * @param {number} targetLength The desired maximum length for each chunk.
+ * @returns {string[]} An array of text chunks.
+ */
+function chunkTextForAudio(text, targetLength) {
+    // splitIntoSentences is defined in translation_utils.js
+    const sentences = splitIntoSentences(text);
+    if (!sentences || sentences.length === 0) {
+        return [];
+    }
+
+    const chunks = [];
+    let currentChunk = "";
+
+    for (let i = 0; i < sentences.length; i++) {
+        const sentence = sentences[i].trim(); // Trim whitespace from sentence
+        if (!sentence) continue; // Skip empty sentences
+
+        const separator = (currentChunk.length > 0) ? " " : ""; // Add space between sentences
+
+        // Check if adding the next sentence exceeds the target length
+        if (currentChunk.length > 0 && (currentChunk.length + separator.length + sentence.length > targetLength)) {
+            // Current chunk is full, push it to results
+            chunks.push(currentChunk);
+            // Start new chunk with the current sentence
+            currentChunk = sentence;
+        } else {
+            // Add sentence to the current chunk
+            currentChunk += separator + sentence;
+        }
+    }
+
+    // Add the last remaining chunk
+    if (currentChunk.length > 0) {
+        chunks.push(currentChunk);
+    }
+
+    console.log(`Chunking complete: ${sentences.length} sentences -> ${chunks.length} chunks (Target length: ${targetLength})`);
+    return chunks;
+}
+
 
 // --- Main Function ---
 async function generateSingleLanguageAudiobook() {
@@ -164,24 +213,22 @@ async function generateSingleLanguageAudiobook() {
     audioGenerationState.base_filename = baseFilename; // Set state variable
     console.log("Determined base filename:", audioGenerationState.base_filename); // Log the determined name
 
-    // 6. Process text (Using translation_utils for simplicity)
-    // TODO: Re-evaluate if ProcessingFile logic is needed for better chunking (like script.js had)
-    console.log("Processing text...");
-
-    const sentences = splitIntoSentences(sourceText);
-    audioGenerationState.audio_sentences = mergeShortSentences(sentences); // Use merged sentences
+    // 6. Process text using the new chunking function
+    console.log("Processing text using chunkTextForAudio...");
+    // *** MODIFIED: Use chunkTextForAudio instead of split/merge ***
+    audioGenerationState.audio_sentences = chunkTextForAudio(sourceText, TARGET_CHUNK_LENGTH);
 
     if (audioGenerationState.audio_sentences.length === 0) {
-        alert("Could not split the text into processable sentences."); // TODO: Translate
+        alert("Could not split the text into processable chunks."); // TODO: Translate
         clearOldRun_SingleLang(); // Clean up UI
-        console.log("--- generateSingleLanguageAudiobook END (No sentences) ---");
+        console.log("--- generateSingleLanguageAudiobook END (No chunks) ---");
         return;
     }
 
     // Pre-allocate parts_book array
     audioGenerationState.parts_book = new Array(audioGenerationState.audio_sentences.length).fill(null);
 
-    // Update status area with sentence count
+    // Update status area with chunk count
     if (statArea) {
         statArea.value = ""; // Clear init message
         audioGenerationState.audio_sentences.forEach((_, index) => {
