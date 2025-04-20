@@ -19,7 +19,6 @@ let audioGenerationState = {
     processed_parts_count: 0, // Counter for successfully completed parts
     failed_parts_count: 0, // Counter for failed parts
     threads_info: { count: 0, max: 10 }, // Current active threads and max allowed
-    save_path_handle: null,
     startTime: 0,
     merge_enabled: false,
     merge_chunk_size: Infinity, // Default to ALL (Infinity)
@@ -142,53 +141,11 @@ async function generateSingleLanguageAudiobook() {
     // Update progress info total
     updateAudioProgress(); // Initial update with total count
 
-    // 7. Start the process by asking for save directory
-    await selectDirectory_SingleLang(voice, rate, pitch);
+    // 7. Start the process directly
+    startAudioGeneration_SingleLang(voice, rate, pitch);
 }
 
 // --- Helper Functions ---
-
-async function selectDirectory_SingleLang(voice, rate, pitch) {
-    // Use the base_filename already set in the state for the suggestion
-    const suggestedName = audioGenerationState.base_filename;
-    try {
-        audioGenerationState.save_path_handle = await window.showDirectoryPicker({
-             suggestedName: suggestedName, // Suggest based on the determined filename
-             mode: 'readwrite' // Request write permission
-        });
-
-        // Optional: Test write access (already implicitly tested by requesting 'readwrite')
-        console.log("Directory selected. Using base filename:", audioGenerationState.base_filename);
-        // *** REMOVED: Don't overwrite base_filename with directory handle name ***
-        // audioGenerationState.base_filename = audioGenerationState.save_path_handle.name || suggestedName;
-
-        startAudioGeneration_SingleLang(voice, rate, pitch);
-
-    } catch (err) {
-        // Handle user cancellation or error
-        if (err.name === 'AbortError') {
-            console.log('Directory selection cancelled by user.');
-            alert('Audio generation cancelled: No directory selected.'); // TODO: Translate
-            clearOldRun_SingleLang(); // Clean up UI fully if cancelled here
-        } else if (err.name === 'NotAllowedError') {
-             console.warn('Write permission denied for directory. Falling back to individual downloads.');
-             alert('Write permission denied. Audio files will be downloaded individually.'); // TODO: Translate
-             audioGenerationState.save_path_handle = null; // Ensure handle is null
-             // *** REMOVED: base_filename is already set ***
-             // audioGenerationState.base_filename = suggestedName;
-             console.log("Directory permission denied. Using base filename:", audioGenerationState.base_filename);
-             startAudioGeneration_SingleLang(voice, rate, pitch); // Proceed with download fallback
-        } else {
-            console.error('Error selecting directory:', err);
-            alert('Error selecting directory. Audio files will be downloaded individually.'); // TODO: Translate
-            audioGenerationState.save_path_handle = null; // Ensure handle is null
-            // *** REMOVED: base_filename is already set ***
-            // audioGenerationState.base_filename = suggestedName;
-            console.log("Directory selection error. Using base filename:", audioGenerationState.base_filename);
-            startAudioGeneration_SingleLang(voice, rate, pitch); // Proceed with download fallback
-        }
-    }
-}
 
 function startAudioGeneration_SingleLang(voice, rate, pitch) {
     if (!audioGenerationState.run_work) return; // Check if cancelled
@@ -216,7 +173,7 @@ function clearOldRun_SingleLang() {
     audioGenerationState.processed_parts_count = 0;
     audioGenerationState.failed_parts_count = 0;
     audioGenerationState.threads_info = { count: 0, max: 10 };
-    audioGenerationState.save_path_handle = null;
+    // REMOVED: audioGenerationState.save_path_handle = null;
     audioGenerationState.startTime = 0;
     audioGenerationState.merge_enabled = false;
     audioGenerationState.merge_chunk_size = Infinity;
@@ -383,10 +340,7 @@ async function saveIndividualFile_SingleLang(index) {
     console.log(`Saving individual file: ${filename}`);
     part.update_stat("Saving...");
 
-    if (audioGenerationState.save_path_handle) {
-        await saveToFileSystem_SingleLang(filename, audioBlob, index, index); // Use the common save function
-    } else {
-        // Download fallback
+    // Always use download fallback (saveAs)
         try {
             saveAs(audioBlob, filename); // FileSaver.js
             console.log(`File ${filename} download initiated.`);
@@ -399,7 +353,6 @@ async function saveIndividualFile_SingleLang(index) {
             part.update_stat("Error Downloading");
             part.start_save = false; // Reset flag on error
             // Don't clear if download failed? Maybe keep data for manual retry?
-        }
     }
     // Check completion again after potential save/clear
     checkCompletion_SingleLang();
@@ -462,12 +415,8 @@ function checkCompletion_SingleLang() {
 
         // Check if all parts are truly finalized (saved/cleared or marked as failed)
         // A part is finalized if it's null (saved/cleared) or if it exists but failed (errorOccurred was true)
-        const allFinalized = audioGenerationState.parts_book.every((part, index) => {
-            // How to check if a part failed previously? Need to store failure state or check status?
-            // Let's assume for now that if it's not null, it should have been saved or merged.
             // A simpler check: are all entries null? (meaning successful save/merge cleared them)
-            return part === null;
-        });
+        const allFinalized = audioGenerationState.parts_book.every((part) => part === null);
 
 
         // Update UI only if all parts are actually cleared/null (meaning saved successfully)
@@ -641,11 +590,7 @@ async function saveMerge_SingleLang(mergeNum, fromIndex, toIndex, totalLength) {
 
     console.log(`Saving merged file: ${filename}`);
 
-    // Save using directory handle or download fallback
-    if (audioGenerationState.save_path_handle) {
-        await saveToFileSystem_SingleLang(filename, audioBlob, fromIndex, toIndex);
-    } else {
-        // Download fallback
+    // Always use download fallback (saveAs)
         try {
             saveAs(audioBlob, filename); // FileSaver.js
             console.log(`File ${filename} download initiated.`);
@@ -667,56 +612,9 @@ async function saveMerge_SingleLang(mergeNum, fromIndex, toIndex, totalLength) {
                  if (part && part.start_save) { // Check start_save flag
                      part.update_stat("Error Downloading");
                      part.start_save = false; // Allow potential retry? Unlikely to work.
-                 }
              }
         }
     }
     // Check completion again after potential save/clear
     checkCompletion_SingleLang();
-}
-
-// Common function to save blob to file system using handle
-async function saveToFileSystem_SingleLang(filename, blob, fromIndex, toIndex) {
-    if (!audioGenerationState.save_path_handle) {
-        console.error("Attempted to save file to file system without a directory handle.");
-        // Update status for relevant parts
-        for (let k = fromIndex; k <= toIndex; k++) {
-            const part = audioGenerationState.parts_book[k];
-            if (part && part.start_save) { // Check if it was part of this save attempt
-                part.update_stat("Error Saving (No Handle)");
-                part.start_save = false;
-            }
-        }
-        return;
-    }
-
-    try {
-        const fileHandle = await audioGenerationState.save_path_handle.getFileHandle(filename, { create: true });
-        const writableStream = await fileHandle.createWritable();
-        await writableStream.write(blob);
-        await writableStream.close();
-        console.log(`Successfully saved: ${filename}`);
-
-        // Clear the successfully saved parts
-        for (let k = fromIndex; k <= toIndex; k++) {
-            const part = audioGenerationState.parts_book[k];
-             // Only clear parts that were actually part of this successful save
-            if (part && part.start_save) { // Check start_save flag
-                part.update_stat("Saved");
-                part.clear();
-                audioGenerationState.parts_book[k] = null;
-            }
-        }
-    } catch (error) {
-        console.error(`Error saving file ${filename}:`, error);
-        alert(`Error saving file: ${filename}\n${error.message}`); // TODO: Translate
-        // Update status for the parts that failed to save
-        for (let k = fromIndex; k <= toIndex; k++) {
-            const part = audioGenerationState.parts_book[k];
-            if (part && part.start_save) { // Check if it was part of this save attempt
-                part.update_stat("Error Saving File");
-                part.start_save = false; // Reset save flag? Might cause issues if retried.
-            }
-        }
-    }
 }
