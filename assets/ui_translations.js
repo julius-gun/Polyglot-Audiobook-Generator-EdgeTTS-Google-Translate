@@ -11,7 +11,7 @@ const translations = {
         translated: 'Translated',
         eta: 'ETA',
         translationError: 'Translation Error',
-        uiLanguage: 'UI Language',
+        uiLanguage: 'User Interface Language',
         openBookViewButton: 'Open in Book-View',
         saveEpubButton: 'Save as EPUB',
         reloadPageButton: 'Delete',

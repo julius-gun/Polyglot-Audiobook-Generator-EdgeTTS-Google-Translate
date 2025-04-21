@@ -132,7 +132,12 @@ async function generateSingleLanguageAudiobook() {
         statArea.value = "Initializing audio generation...\n"; // Keep this initial message hardcoded or create a key if needed
         statArea.classList.remove('hide');
     }
-    if (progressContainer) progressContainer.classList.remove('hide');
+    if (progressContainer) {
+        progressContainer.classList.remove('hide');
+    } else {
+        console.error("Progress Container element NOT FOUND!");
+    }
+
     if (progressBar) {
         progressBar.style.width = '0%';
         progressBar.textContent = '0%';
@@ -141,6 +146,8 @@ async function generateSingleLanguageAudiobook() {
     if (progressInfo) {
         progressInfo.classList.remove('hide'); // NEW: Remove hide class
         progressInfo.innerHTML = ''; // Clear previous content, wait for total count
+    } else {
+        console.error("Progress Info element NOT FOUND!");
     }
 
     // Hide bilingual-specific buttons/messages
@@ -415,10 +422,12 @@ function resetSingleLanguageUI() {
     if (statArea) {
         statArea.value = "";
         statArea.classList.add('hide');
-        // statArea.style.display = 'none';
     }
-    if (progressContainer) progressContainer.style.display = 'none';
-    if (progressContainer) progressContainer.classList.add('hide'); // NEW: Add hide class
+    // FIX: Only use the hide class for consistency
+    if (progressContainer) {
+        // progressContainer.style.display = 'none'; // <<< REMOVED THIS LINE
+        progressContainer.classList.add('hide'); // Keep this line
+    }
 
     if (progressBar) {
         progressBar.style.width = '0%';
