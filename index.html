@@ -2,11 +2,16 @@
 <html>
 
 <head>
+  <meta charset="UTF-8"> <!-- Added charset -->
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"> <!-- Added viewport -->
   
   <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.6.0/jszip.min.js"></script>
-  <title>Polyglot Audiobook Generator</title> 
-  <link rel="stylesheet" href="assets/styles.css">
-  <script src="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/js/all.min.js"></script>
+  <title id="page-title">Polyglot Audiobook Generator - Google Translate & EdgeTTS</title>
+  <!-- Removed old styles.css link -->
+  <link rel="stylesheet" href="assets/modern_styles.css"> <!-- Added new styles.css link -->
+  <!-- FontAwesome Kit (Replace with your preferred method if needed) -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/js/all.min.js" integrity="sha512-GWzVrcGlo0TxTRvz9ttioyYJ+Wwk9Ck0G81D+eO63BaqHaJ3YZX9wuqjwgfcV/MrB2PhaVX9DkYVhbFpStnqpQ==" crossorigin="anonymous" referrerpolicy="no-referrer"></script>
+
   <script>
     window.dataLayer = window.dataLayer || [];
 
@@ -15,241 +20,258 @@
 
     gtag('config', 'G-HP6ZDS0E04');
   </script>
-  <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.7.1/jszip.min.js"></script>
-  <script src="https://cdnjs.cloudflare.com/ajax/libs/FileSaver.js/2.0.5/FileSaver.min.js"></script>
+
+  <!-- JSZip and FileSaver (Keep local copies as primary) -->
   <script src="assets/lib/jszip.min.js"></script> 
   <script src="assets/lib/FileSaver.min.js"></script> 
+  <!-- Fallback CDNs (Optional) -->
+  <script>window.JSZip || document.write('<script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.7.1/jszip.min.js"><\/script>')</script>
+  <script>window.saveAs || document.write('<script src="https://cdnjs.cloudflare.com/ajax/libs/FileSaver.js/2.0.5/FileSaver.min.js"><\/script>')</script>
 
-  <!-- Updated JS paths and order -->
-  <!-- Data and Config first -->
+  <!-- JS paths remain the same -->
   <script src="assets/config.js" defer></script>
   <script src="assets/static/language_data.js" defer></script>
   <script src="assets/ui_translations.js" defer></script>
-  <script src="assets/static/voices-data.js" defer></script> <!-- ADDED -->
-  <!-- Utilities and API -->
+  <script src="assets/static/voices-data.js" defer></script>
   <script src="assets/translation_utils.js" defer></script>
   <script src="assets/translation_api.js" defer></script>
   <script src="assets/epub_generator.js" defer></script>
   <script src="assets/texts_converter.js" defer></script>
-  <!-- UI Helper Functions -->
   <script src="assets/ui_helpers.js" defer></script>
-  <!-- Settings and Help System -->
-  <script src="assets/settings.js" defer></script> <!-- ADDED -->
-  <script src="assets/help_system.js" defer></script> <!-- ADDED -->
-  <!-- Progress Bar Logic -->
+  <script src="assets/settings.js" defer></script>
+  <script src="assets/help_system.js" defer></script>
   <script src="assets/progress_bar.js" defer></script>
-  <!-- Language Dropdown Creation -->
   <script src="assets/language_dropdown.js" defer></script>
-  <!-- UI Logic -->
   <script src="assets/ui.js" defer></script>
-  <!-- Voice Dropdown Logic -->
   <script src="assets/voice-dropdown-menu.js" defer></script>
-  <!-- EdgeTTS specific JS -->
   <script src="assets/processing_file.js" defer></script>
   <script src="assets/socket_edge_tts.js" defer></script>
-  <!-- Audio Generation Logic -->
   <script src="assets/audio_helpers.js" defer></script>
-  <!-- ADDED: Audio Pipeline Manager -->
   <script src="assets/audio_pipeline.js" defer></script>
-  <!-- Single Language Audio Logic (Refactored) -->
   <script src="assets/audio_single_language.js" defer></script>
-  <!-- Multi-Language Audio Logic -->
-  <script src="assets/audio_multi_language.js" defer></script> <!-- ADDED HERE -->
-  <!-- Bilingual Views Logic -->
-  <script src="assets/bilingual_view_generator.js" defer></script> <!-- ADDED HERE -->
-  <!-- Core Application Logic (decides which generation to run) -->
+  <script src="assets/audio_multi_language.js" defer></script>
+  <script src="assets/bilingual_view_generator.js" defer></script>
   <script src="assets/app_logic.js" defer></script>
-  <!-- Event Listeners -->
   <script src="assets/event_listeners.js" defer></script>
-  <!-- Initialization Logic -->
   <script src="assets/initialization.js" defer></script>
-  <!-- Main orchestration script last -->
   <script src="assets/main.js" defer></script>
 
-  <!-- Removed old script tags for languages.js and translations.js -->
 </head>
 
 <body>
   <!-- START: Firefox Warning Message (Hidden by default) -->
-  <div id="firefox-warning" class="hide"
-    style="background-color: #ffdddd; border: 1px solid #f44336; color: #a94442; padding: 15px; margin: 10px; text-align: center; border-radius: 5px; font-size: 0.9em;">
-    <strong id="firefox-warning-title"></strong> <!-- ID added, text removed -->
-    <span id="firefox-warning-body"></span> <!-- ID added, text removed -->
+  <div id="firefox-warning" class="hide">
+    <strong id="firefox-warning-title"></strong>
+    <span id="firefox-warning-body"></span>
   </div>
   <!-- END: Firefox Warning Message -->
 
-  <div class="del">
-    <header>
-      <h1 id="page-title"></h1> <!-- ID added, text removed -->
-      <div id="language-selector-container">
-        <button class="settings-button" id="settings-button" title="">⚙️</button> <!-- Title removed -->
-        <label id="ui-language-label" for="ui-language-selector">
-          <span id="ui-language-icon">🌐</span>
-          <span id="ui-language-text"></span> <!-- ID added, text removed -->
+  <!-- Application Header -->
+  <header class="app-header">
+    <h1 id="page-title-h1"></h1> <!-- Title updated by JS -->
+    <div id="header-controls" class="d-flex align-items-center gap-2">
+      <div id="language-selector-container" class="d-flex align-items-center gap-1">
+        <label id="ui-language-label" for="ui-language-selector" class="mb-0 d-flex align-items-center gap-1">
+          <i id="ui-language-icon" class="fas fa-globe"></i> <!-- FontAwesome Icon -->
+          <span id="ui-language-text"></span> <!-- Text updated by JS -->
         </label>
         <!-- UI Language selector will be added here by JavaScript -->
       </div>
-    </header>
-    <div id="language-headers" class="language-row-headers">
-      <span class="header-spacer header-label-spacer"></span> <!-- Spacer for the main label column -->
-      <span id="header-language-label" class="header-label header-language-col"></span> <!-- Text removed -->
-      <span id="header-voice-label" class="header-label header-voice-col"></span> <!-- Text removed -->
-      <span class="header-spacer header-controls-spacer"></span> <!-- Spacer for voice controls -->
-      <span class="header-spacer header-buttons-spacer"></span> <!-- Spacer for add/remove buttons -->
+      <button class="button-subtle" id="settings-button" title=""> <!-- Title updated by JS -->
+        <i class="fas fa-cog"></i> <!-- FontAwesome Icon -->
+      </button>
+    </div>
+  </header>
+
+  <!-- Main Content Area -->
+  <main class="main-content">
+    <!-- Language Row Headers (Hidden by default in new CSS) -->
+    <div id="language-headers" class="language-row-headers mb-1">
+      <span class="header-spacer header-label-spacer"></span>
+      <span id="header-language-label" class="header-label header-language-col"></span>
+      <span id="header-voice-label" class="header-label header-voice-col"></span>
+      <span class="header-spacer header-controls-spacer"></span>
+      <span class="header-spacer header-buttons-spacer"></span>
     </div>
 
-    <div id="sl-container">
-      <label for="sl" id="sl-label"></label> <!-- ID added, text removed -->
+    <!-- Source Language Row -->
+    <div id="sl-container" class="language-row mb-2">
+      <label for="sl" id="sl-label" class="language-row-label"></label> <!-- Text updated by JS -->
       <!-- Language select added by JS -->
       <select id="sl-voice" class="voice-select"></select>
-      <!-- Voice Controls Added -->
       <div class="voice-controls">
         <div class="slider-container rate-pitch-controls">
-          <label for="sl-rate" id="sl-rate-label"></label> <!-- ID added, text removed -->
+          <label for="sl-rate" id="sl-rate-label"></label> <!-- Text updated by JS -->
           <input type="range" id="sl-rate" class="rate-slider" min="-100" max="100" value="0">
           <span class="rate-value">+0%</span>
         </div>
         <div class="slider-container rate-pitch-controls">
-          <label for="sl-pitch" id="sl-pitch-label"></label> <!-- ID added, text removed -->
+          <label for="sl-pitch" id="sl-pitch-label"></label> <!-- Text updated by JS -->
           <input type="range" id="sl-pitch" class="pitch-slider" min="-50" max="50" value="0">
           <span class="pitch-value">+0Hz</span>
         </div>
       </div>
-      <!-- End Voice Controls -->
-      <button id="add-first-target-button" class="add-lang-button">+</button>
+      <div class="language-row-actions">
+        <button id="add-first-target-button" class="button-subtle add-lang-button" title="Add target language"> <!-- Title might need translation -->
+            <i class="fas fa-plus"></i>
+        </button>
+      </div>
     </div>
 
-    <!-- MODIFIED: Target Language 1 container is hidden by default -->
-    <div id="tl1-container" class="hide">
-      <label for="tl1" id="tl1-label"></label> <!-- ID added, text removed -->
+    <!-- Target Language 1 Row -->
+    <div id="tl1-container" class="language-row hide mb-2">
+      <label for="tl1" id="tl1-label" class="language-row-label"></label> <!-- Text updated by JS -->
       <!-- Language select added by JS -->
       <select id="tl1-voice" class="voice-select"></select>
-      <button class="add-lang-button" data-target-container-id="tl2-container">+</button>
-      <button class="remove-lang-button" data-target-container-id="tl1-container">-</button>
-      <!-- Voice Controls Added -->
       <div class="voice-controls">
         <div class="slider-container rate-pitch-controls">
-          <label for="tl1-rate" id="tl1-rate-label"></label> <!-- ID added, text removed -->
+          <label for="tl1-rate" id="tl1-rate-label"></label> <!-- Text updated by JS -->
           <input type="range" id="tl1-rate" class="rate-slider" min="-100" max="100" value="0">
           <span class="rate-value">+0%</span>
         </div>
         <div class="slider-container rate-pitch-controls">
-          <label for="tl1-pitch" id="tl1-pitch-label"></label> <!-- ID added, text removed -->
+          <label for="tl1-pitch" id="tl1-pitch-label"></label> <!-- Text updated by JS -->
           <input type="range" id="tl1-pitch" class="pitch-slider" min="-50" max="50" value="0">
           <span class="pitch-value">+0Hz</span>
         </div>
       </div>
-      <!-- End Voice Controls -->
+      <div class="language-row-actions">
+        <button class="add-lang-button button-subtle" data-target-container-id="tl2-container" title="Add target language"> <!-- Title might need translation -->
+            <i class="fas fa-plus"></i>
+        </button>
+        <button class="remove-lang-button button-danger button-subtle" data-target-container-id="tl1-container" title="Remove target language"> <!-- Title might need translation -->
+            <i class="fas fa-minus"></i>
+        </button>
+      </div>
     </div>
 
-    <div id="tl2-container" class="hide">
-      <label for="tl2" id="tl2-label"></label> <!-- ID added, text removed -->
+    <!-- Target Language 2 Row -->
+    <div id="tl2-container" class="language-row hide mb-2">
+      <label for="tl2" id="tl2-label" class="language-row-label"></label> <!-- Text updated by JS -->
       <!-- Language select added by JS -->
       <select id="tl2-voice" class="voice-select"></select>
-      <button class="add-lang-button" data-target-container-id="tl3-container">+</button>
-      <button class="remove-lang-button" data-target-container-id="tl2-container">-</button>
-      <!-- Voice Controls Added -->
       <div class="voice-controls">
         <div class="slider-container rate-pitch-controls">
-          <label for="tl2-rate" id="tl2-rate-label"></label> <!-- ID added, text removed -->
+          <label for="tl2-rate" id="tl2-rate-label"></label> <!-- Text updated by JS -->
           <input type="range" id="tl2-rate" class="rate-slider" min="-100" max="100" value="0">
           <span class="rate-value">+0%</span>
         </div>
         <div class="slider-container rate-pitch-controls">
-          <label for="tl2-pitch" id="tl2-pitch-label"></label> <!-- ID added, text removed -->
+          <label for="tl2-pitch" id="tl2-pitch-label"></label> <!-- Text updated by JS -->
           <input type="range" id="tl2-pitch" class="pitch-slider" min="-50" max="50" value="0">
           <span class="pitch-value">+0Hz</span>
         </div>
       </div>
-      <!-- End Voice Controls -->
+      <div class="language-row-actions">
+        <button class="add-lang-button button-subtle" data-target-container-id="tl3-container" title="Add target language"> <!-- Title might need translation -->
+            <i class="fas fa-plus"></i>
+        </button>
+        <button class="remove-lang-button button-danger button-subtle" data-target-container-id="tl2-container" title="Remove target language"> <!-- Title might need translation -->
+            <i class="fas fa-minus"></i>
+        </button>
+      </div>
     </div>
 
-    <div id="tl3-container" class="hide">
-      <label for="tl3" id="tl3-label"></label> <!-- ID added, text removed -->
+    <!-- Target Language 3 Row -->
+    <div id="tl3-container" class="language-row hide mb-2">
+      <label for="tl3" id="tl3-label" class="language-row-label"></label> <!-- Text updated by JS -->
       <!-- Language select added by JS -->
       <select id="tl3-voice" class="voice-select"></select>
-      <button class="add-lang-button" data-target-container-id="tl4-container">+</button>
-      <button class="remove-lang-button" data-target-container-id="tl3-container">-</button>
-      <!-- Voice Controls Added -->
       <div class="voice-controls">
         <div class="slider-container rate-pitch-controls">
-          <label for="tl3-rate" id="tl3-rate-label"></label> <!-- ID added, text removed -->
+          <label for="tl3-rate" id="tl3-rate-label"></label> <!-- Text updated by JS -->
           <input type="range" id="tl3-rate" class="rate-slider" min="-100" max="100" value="0">
           <span class="rate-value">+0%</span>
         </div>
         <div class="slider-container rate-pitch-controls">
-          <label for="tl3-pitch" id="tl3-pitch-label"></label> <!-- ID added, text removed -->
+          <label for="tl3-pitch" id="tl3-pitch-label"></label> <!-- Text updated by JS -->
           <input type="range" id="tl3-pitch" class="pitch-slider" min="-50" max="50" value="0">
           <span class="pitch-value">+0Hz</span>
         </div>
       </div>
-      <!-- End Voice Controls -->
+      <div class="language-row-actions">
+        <button class="add-lang-button button-subtle" data-target-container-id="tl4-container" title="Add target language"> <!-- Title might need translation -->
+            <i class="fas fa-plus"></i>
+        </button>
+        <button class="remove-lang-button button-danger button-subtle" data-target-container-id="tl3-container" title="Remove target language"> <!-- Title might need translation -->
+            <i class="fas fa-minus"></i>
+        </button>
+      </div>
     </div>
 
-    <div id="tl4-container" class="hide">
-      <label for="tl4" id="tl4-label"></label> <!-- ID added, text removed -->
+    <!-- Target Language 4 Row -->
+    <div id="tl4-container" class="language-row hide mb-2">
+      <label for="tl4" id="tl4-label" class="language-row-label"></label> <!-- Text updated by JS -->
       <!-- Language select added by JS -->
       <select id="tl4-voice" class="voice-select"></select>
-      <button class="remove-lang-button" data-target-container-id="tl4-container">-</button>
-      <!-- Voice Controls Added -->
       <div class="voice-controls">
         <div class="slider-container rate-pitch-controls">
-          <label for="tl4-rate" id="tl4-rate-label"></label> <!-- ID added, text removed -->
+          <label for="tl4-rate" id="tl4-rate-label"></label> <!-- Text updated by JS -->
           <input type="range" id="tl4-rate" class="rate-slider" min="-100" max="100" value="0">
           <span class="rate-value">+0%</span>
         </div>
         <div class="slider-container rate-pitch-controls">
-          <label for="tl4-pitch" id="tl4-pitch-label"></label> <!-- ID added, text removed -->
+          <label for="tl4-pitch" id="tl4-pitch-label"></label> <!-- Text updated by JS -->
           <input type="range" id="tl4-pitch" class="pitch-slider" min="-50" max="50" value="0">
           <span class="pitch-value">+0Hz</span>
         </div>
       </div>
-      <!-- End Voice Controls -->
+      <div class="language-row-actions">
+        <button class="remove-lang-button button-danger button-subtle" data-target-container-id="tl4-container" title="Remove target language"> <!-- Title might need translation -->
+            <i class="fas fa-minus"></i>
+        </button>
+      </div>
     </div>
 
-    <!-- ADDED: Container for Advanced Audio Settings, hidden by default -->
-    <div id="advanced-audio-settings" class="hide" style="margin-top: 15px; margin-bottom: 15px; border: 1px dashed #ccc; padding: 15px; border-radius: 5px;">
-       <h4 id="advanced-audio-settings-title" style="margin-bottom: 10px; color: #555;"></h4> <!-- ID added, text removed -->
-       <div class="slider-container" id="div-threads">
-        <label for="max-threads" id="threads-label" style="flex-basis: 70px;"></label> <!-- ID added, text removed -->
+    <!-- Advanced Audio Settings (Collapsible Section) -->
+    <div id="advanced-audio-settings" class="hide mb-3 mt-3">
+       <h4 id="advanced-audio-settings-title" class="mb-2"></h4> <!-- Text updated by JS -->
+       <div class="slider-container mb-1" id="div-threads">
+        <label for="max-threads" id="threads-label" style="flex-basis: 80px;"></label> <!-- Text updated by JS -->
         <input type="range" id="max-threads" class="max-threads" min="1" max="30" value="10" step="1" style="flex-grow: 1;">
         <span class="threads-value" id="max-threads-int" style="min-width: 30px; text-align: right;">10</span>
       </div>
-      <div class="slider-container" id="div-mergefiles" style="margin-top: 5px;">
-        <label for="mergefiles" id="merge-by-label" style="flex-basis: 70px;"></label> <!-- ID added, text removed -->
+      <div class="slider-container mb-2" id="div-mergefiles">
+        <label for="mergefiles" id="merge-by-label" style="flex-basis: 80px;"></label> <!-- Text updated by JS -->
         <input type="range" id="mergefiles" class="mergefiles" min="1" max="100" value="100" step="1" style="flex-grow: 1;">
         <span class="merge-value" id="mergefiles-str" style="min-width: 50px; text-align: right;">ALL</span> <!-- Text updated by JS -->
       </div>
-      <button id="insert-file-button" style="margin-top: 10px;"></button> <!-- Text removed -->
+      <button id="insert-file-button" class="button-secondary mt-2"></button> <!-- Text updated by JS -->
     </div>
 
-    <br>
-    <h3 id="enter-source-text-label"></h3> <!-- ID added, text removed -->
-    <textarea id="source-text" placeholder=""></textarea> <!-- Placeholder removed -->
-    <!-- Hidden file input -->
+    <!-- Source Text Input Area -->
+    <h3 id="enter-source-text-label" class="mt-3"></h3> <!-- Text updated by JS -->
+    <textarea id="source-text" placeholder="" class="mb-2"></textarea> <!-- Placeholder updated by JS -->
     <input type="file" id="file-input" accept=".txt, .fb2, .epub, .ini, .zip" multiple style="display: none;">
-    <button id="generate-button"></button> <!-- Text removed -->
-    <!-- Moved Post-Translation Buttons Here -->
-    <button id="open-book-view-button" class="hide" style="margin-left: 10px;"></button> <!-- Text removed -->
-    <button id="save-epub-button" class="hide" style="margin-left: 5px;"></button> <!-- Text removed -->
-    <button id="reload-page-button" class="hide" style="margin-left: 5px;"></button> <!-- Text removed -->
 
+    <!-- Main Action Buttons -->
+    <div id="action-buttons" class="mt-2 mb-3 d-flex gap-2 flex-wrap"> <!-- Added flex-wrap -->
+      <button id="generate-button" class="button-primary"></button> <!-- Text updated by JS -->
+      <button id="open-book-view-button" class="button-secondary hide"></button> <!-- Text updated by JS -->
+      <button id="save-epub-button" class="button-secondary hide"></button> <!-- Text updated by JS -->
+      <button id="reload-page-button" class="button-danger hide"></button> <!-- Text updated by JS -->
+    </div>
+  </main>
+
+  <!-- Status and Output Area -->
+  <section class="status-area">
     <!-- Progress Bar -->
-    <div id="progress-container" style="margin-top: 20px; display: none;">
+    <div id="progress-container" class="hide mb-1">
       <div id="progress-bar">0%</div>
     </div>
-    <div id="progress-info" style="display: none;">
-      <span id="progress-translated-label"></span>: <span id="progress-translated-value">0 / 0</span> | <!-- IDs added -->
-      <span id="progress-eta-label"></span>: <span id="progress-eta-value"></span> <!-- IDs added, text removed -->
+    <!-- Progress Info (including ETA) -->
+    <div id="progress-info" class="hide mb-2 text-muted">
+      <span id="progress-translated-label"></span>: <span id="progress-translated-value">0 / 0</span> | <!-- Labels updated by JS -->
+      <span id="progress-eta-label"></span>: <span id="progress-eta-value"></span> <!-- Labels updated by JS -->
     </div>
-    <!-- Moved Translation Finished Message Here -->
-    <div id="translation-finished-message" class="hide" style="margin-top: 10px; font-weight: bold;"></div> <!-- Text removed -->
+    <div id="translation-finished-message" class="hide mb-2"></div> <!-- Text updated by JS -->
 
-    <!-- Status Text Area (Hidden by default) -->
-    <textarea readonly class="text hide" id="stat-area" style="margin-top: 10px; height: 150px; background-color: #f0f0f0; border: 1px solid #ccc; color: #333; font-family: monospace; font-size: 0.9em;" placeholder=""></textarea> <!-- Placeholder removed -->
+    <!-- Status Text Area -->
+    <textarea readonly class="text hide mb-3" id="stat-area" placeholder=""></textarea> <!-- Placeholder updated by JS -->
 
-  </div>
-  <div id="output"></div> <!-- Used for bilingual book output -->
+    <!-- Bilingual Output Area -->
+    <div id="output"></div>
+  </section>
 
 </body>
 

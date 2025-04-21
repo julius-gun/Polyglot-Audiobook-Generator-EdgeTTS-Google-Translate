@@ -23,7 +23,8 @@ async function setLanguage(lang) {
 function translateUIElements() {
   const uiElements = {
     // Header & General
-    pageTitle: document.getElementById('page-title'),
+    pageTitle: document.getElementById('page-title'), // For browser tab title
+    pageTitleH1: document.getElementById('page-title-h1'), // <<< Add this line for the visible H1
     settingsButtonTitle: document.getElementById('settings-button'), // Attribute: title
     uiLanguageText: document.getElementById('ui-language-text'), // Span inside label
     headerLanguageLabel: document.getElementById('header-language-label'),
@@ -81,69 +82,75 @@ function translateUIElements() {
       if (element) {
         let translatedText;
         // Handle specific keys/attributes (no awaits needed)
-        if (key === 'settingsButtonTitle') {
-          translatedText = getTranslation('titleSettingsButton');
-          element.title = translatedText;
-        } else if (key === 'enterText' || key === 'statAreaPlaceholder') { // Use correct key 'statAreaPlaceholder'
-          translatedText = getTranslation(key === 'enterText' ? 'enterText' : 'placeholderStatArea'); // Map key correctly
-          element.placeholder = translatedText;
-        } else if (key === 'progressTranslatedLabel') {
-          translatedText = getTranslation('translated');
+        if (key === 'pageTitle') { // Handles <title> tag
+          translatedText = getTranslation('pageTitle');
           element.textContent = translatedText;
-        } else if (key === 'progressEtaLabel') {
-          translatedText = getTranslation('eta');
+        } else if (key === 'pageTitleH1') { // <<< Add this block to handle H1
+          translatedText = getTranslation('pageTitle'); // Use the same translation key
           element.textContent = translatedText;
-        } else if (key === 'progressEtaValue') {
-          const calculatingText = getTranslation('statusCalculating');
-          // Only set initial "Calculating..." text if the value is currently empty or also "Calculating..." or the fallback key
-          if (!element.textContent || element.textContent === calculatingText || element.textContent === '[statusCalculating]') {
-            element.textContent = calculatingText;
-          }
-        } else if (key === 'firefoxWarningBody') {
-          const bodyText = getTranslation('firefoxWarningBody');
-          element.textContent = bodyText;
-        } else if (key === 'slRateLabel' || key === 'tl1RateLabel' || key === 'tl2RateLabel' || key === 'tl3RateLabel' || key === 'tl4RateLabel') {
-          translatedText = getTranslation('labelRate');
-          element.textContent = translatedText;
-        } else if (key === 'slPitchLabel' || key === 'tl1PitchLabel' || key === 'tl2PitchLabel' || key === 'tl3PitchLabel' || key === 'tl4PitchLabel') {
-          translatedText = getTranslation('labelPitch');
-          element.textContent = translatedText;
-        } else if (key === 'uiLanguageText') {
-          translatedText = getTranslation('uiLanguage');
-          element.textContent = translatedText + ':';
-        } else {
-          // Default: Set textContent
-          let translationKey = key;
-          if (key === 'slLabel') translationKey = 'sourceLabel';
-          else if (key === 'tl1Label') translationKey = 'targetLabel1';
-          else if (key === 'tl2Label') translationKey = 'targetLabel2';
-          else if (key === 'tl3Label') translationKey = 'targetLabel3';
-          else if (key === 'tl4Label') translationKey = 'targetLabel4';
-          else if (key === 'threadsLabel') translationKey = 'labelThreads';
-          else if (key === 'mergeByLabel') translationKey = 'labelMergeBy';
-          // Add other specific mappings if needed
+          if (key === 'settingsButtonTitle') {
+            translatedText = getTranslation('titleSettingsButton');
+            element.title = translatedText;
+          } else if (key === 'enterText' || key === 'statAreaPlaceholder') { // Use correct key 'statAreaPlaceholder'
+            translatedText = getTranslation(key === 'enterText' ? 'enterText' : 'placeholderStatArea'); // Map key correctly
+            element.placeholder = translatedText;
+          } else if (key === 'progressTranslatedLabel') {
+            translatedText = getTranslation('translated');
+            element.textContent = translatedText;
+          } else if (key === 'progressEtaLabel') {
+            translatedText = getTranslation('eta');
+            element.textContent = translatedText;
+          } else if (key === 'progressEtaValue') {
+            const calculatingText = getTranslation('statusCalculating');
+            // Only set initial "Calculating..." text if the value is currently empty or also "Calculating..." or the fallback key
+            if (!element.textContent || element.textContent === calculatingText || element.textContent === '[statusCalculating]') {
+              element.textContent = calculatingText;
+            }
+          } else if (key === 'firefoxWarningBody') {
+            const bodyText = getTranslation('firefoxWarningBody');
+            element.textContent = bodyText;
+          } else if (key === 'slRateLabel' || key === 'tl1RateLabel' || key === 'tl2RateLabel' || key === 'tl3RateLabel' || key === 'tl4RateLabel') {
+            translatedText = getTranslation('labelRate');
+            element.textContent = translatedText;
+          } else if (key === 'slPitchLabel' || key === 'tl1PitchLabel' || key === 'tl2PitchLabel' || key === 'tl3PitchLabel' || key === 'tl4PitchLabel') {
+            translatedText = getTranslation('labelPitch');
+            element.textContent = translatedText;
+          } else if (key === 'uiLanguageText') {
+            translatedText = getTranslation('uiLanguage');
+            element.textContent = translatedText + ':';
+          } else {
+            // Default: Set textContent
+            let translationKey = key;
+            if (key === 'slLabel') translationKey = 'sourceLabel';
+            else if (key === 'tl1Label') translationKey = 'targetLabel1';
+            else if (key === 'tl2Label') translationKey = 'targetLabel2';
+            else if (key === 'tl3Label') translationKey = 'targetLabel3';
+            else if (key === 'tl4Label') translationKey = 'targetLabel4';
+            else if (key === 'threadsLabel') translationKey = 'labelThreads';
+            else if (key === 'mergeByLabel') translationKey = 'labelMergeBy';
+            // Add other specific mappings if needed
 
-          translatedText = getTranslation(translationKey);
-          element.textContent = translatedText;
+            translatedText = getTranslation(translationKey);
+            element.textContent = translatedText;
+          }
+        } else {
+          // console.warn(`UI element not found for key: ${key}`);
         }
-      } else {
-        // console.warn(`UI element not found for key: ${key}`);
       }
     }
+
+    // Update slider text values (now synchronous)
+    document.querySelectorAll('.mergefiles').forEach(slider => {
+      const valueSpan = slider.closest('.slider-container')?.querySelector('.merge-value');
+      if (valueSpan) {
+        const value = slider.value;
+        const allText = getTranslation('textAll');
+        const pcsText = getTranslation('textPieces');
+        valueSpan.textContent = value == 100 ? allText : `${value} ${pcsText}`;
+      }
+    });
   }
-
-  // Update slider text values (now synchronous)
-  document.querySelectorAll('.mergefiles').forEach(slider => {
-    const valueSpan = slider.closest('.slider-container')?.querySelector('.merge-value');
-    if (valueSpan) {
-      const value = slider.value;
-      const allText = getTranslation('textAll');
-      const pcsText = getTranslation('textPieces');
-      valueSpan.textContent = value == 100 ? allText : `${value} ${pcsText}`;
-    }
-  });
 }
-
 
 // Function to rebuild language and voice dropdowns (now synchronous)
 // Note: This assumes createLanguageDropdown and createLanguageSelector will also be made synchronous
