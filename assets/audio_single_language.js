@@ -131,20 +131,16 @@ async function generateSingleLanguageAudiobook() {
     if (statArea) {
         statArea.value = "Initializing audio generation...\n"; // Keep this initial message hardcoded or create a key if needed
         statArea.classList.remove('hide');
-        statArea.style.display = 'block';
     }
-    if (progressContainer) progressContainer.style.display = 'block';
+    if (progressContainer) progressContainer.classList.remove('hide');
     if (progressBar) {
         progressBar.style.width = '0%';
         progressBar.textContent = '0%';
+        progressBar.style.backgroundColor = ''; // Reset color on new run
     }
     if (progressInfo) {
-        progressInfo.style.display = 'block';
-        // Use fetchTranslation for labels
-        const processedText = fetchTranslation('statusProcessed', currentLanguage);
-        const etaText = fetchTranslation('eta', currentLanguage);
-        const calculatingText = fetchTranslation('statusCalculating', currentLanguage);
-        progressInfo.innerHTML = `<span>${processedText}: 0 / 0</span> | <span>${etaText}: ${calculatingText}</span>`;
+        progressInfo.classList.remove('hide'); // NEW: Remove hide class
+        progressInfo.innerHTML = ''; // Clear previous content, wait for total count
     }
 
     // Hide bilingual-specific buttons/messages
@@ -164,12 +160,14 @@ async function generateSingleLanguageAudiobook() {
         return;
     }
 
-    // Update progress total immediately
+    // Update progress total immediately (Moved slightly earlier, before pipeline config)
+    // This ensures the total is shown even before the pipeline starts processing
     if (progressInfo) {
         // Use fetchTranslation for labels
         const processedText = fetchTranslation('statusProcessed', currentLanguage);
         const etaText = fetchTranslation('eta', currentLanguage);
         const calculatingText = fetchTranslation('statusCalculating', currentLanguage);
+        // Ensure the total count is updated correctly here
         progressInfo.innerHTML = `<span>${processedText}: 0 / ${audioChunks.length}</span> | <span>${etaText}: ${calculatingText}</span>`;
     }
 
@@ -417,16 +415,18 @@ function resetSingleLanguageUI() {
     if (statArea) {
         statArea.value = "";
         statArea.classList.add('hide');
-        statArea.style.display = 'none';
+        // statArea.style.display = 'none';
     }
     if (progressContainer) progressContainer.style.display = 'none';
+    if (progressContainer) progressContainer.classList.add('hide'); // NEW: Add hide class
+
     if (progressBar) {
         progressBar.style.width = '0%';
         progressBar.textContent = '0%';
         progressBar.style.backgroundColor = ''; // Reset background color
     }
     if (progressInfo) {
-        progressInfo.style.display = 'none';
+        progressInfo.classList.add('hide'); // NEW: Add hide class
         progressInfo.innerHTML = '';
     }
     // Keep advanced settings visible if they were manually opened? Or always hide on reset?
