@@ -11,6 +11,12 @@
 
 async function generateBilingualBook() {
     console.log("Starting Bilingual Generation Process");
+
+    document.getElementById('translation-finished-message')?.classList.add('hide');
+    document.getElementById('open-book-view-button')?.classList.add('hide');
+    document.getElementById('save-epub-button')?.classList.add('hide');
+    document.getElementById('reload-page-button')?.classList.add('hide');
+
     const sourceText = document.getElementById('source-text').value;
     let sourceLang = document.getElementById('sl').value;
     // Get selected voices
