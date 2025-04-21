@@ -178,3 +178,143 @@ async function saveAsZip_Pipeline(successfulResults, baseFilename, statArea = nu
         cleanupTaskInstances(successfulResults);
     }
 }
+
+
+/**
+ * Merges results into chunks and saves them.
+ * Assumes input array contains only successful instances.
+ * Cleans up instances after attempting to save each chunk.
+ * @param {Array<SocketEdgeTTS>} successfulResults - Array of successful task instances.
+ * @param {string} baseFilename - Base name for files.
+ * @param {number} chunkSize - Number of parts per merged file (Infinity for all).
+ * @param {HTMLElement} [statArea=null] - Optional UI element for status updates. // Added statArea param
+ */
+async function doMerge_Pipeline(successfulResults, baseFilename, chunkSize, statArea = null) { // Added statArea param
+    const totalParts = successfulResults.length;
+    if (totalParts === 0) return;
+
+    // Sort results by indexpart to ensure correct order before merging
+    successfulResults.sort((a, b) => a.indexpart - b.indexpart);
+
+    const actualChunkSize = chunkSize === Infinity ? totalParts : chunkSize;
+    let mergedFileCount = 0;
+    const allProcessedInstances = []; // Keep track of all instances processed across chunks for final cleanup check
+
+    for (let i = 0; i < totalParts; i += actualChunkSize) {
+        const chunkStart = i;
+        const chunkEnd = Math.min(chunkStart + actualChunkSize, totalParts); // Use exclusive end index for slice
+        const chunkInstances = successfulResults.slice(chunkStart, chunkEnd);
+        allProcessedInstances.push(...chunkInstances); // Add instances from this chunk to the master list
+
+        if (chunkInstances.length === 0) continue; // Should not happen with successfulResults, but check anyway
+
+        let combinedLength = 0;
+        const partsInChunk = [];
+        const indicesProcessed = []; // Keep track of original indices if needed, though less critical now
+
+        // Collect audio data from the current chunk
+        for (const instance of chunkInstances) {
+            if (instance && instance.my_uint8Array && instance.my_uint8Array.length > 0) {
+                partsInChunk.push(instance.my_uint8Array);
+                combinedLength += instance.my_uint8Array.length;
+                // Pass translated status to update_stat
+                instance.update_stat(fetchTranslation("statusMerging", currentLanguage));
+            } else {
+                console.warn(`Skipping invalid instance during merge: Index ${instance?.indexpart}`);
+            }
+        }
+
+        // If data was collected for this chunk, combine and save
+        if (partsInChunk.length > 0 && combinedLength > 0) {
+            const firstPartNum = chunkInstances[0]?.my_filenum || "unknown";
+            const lastPartNum = chunkInstances[chunkInstances.length - 1]?.my_filenum || "unknown";
+
+            console.log(`Combining audio for merge chunk: Parts ${firstPartNum} to ${lastPartNum}`);
+            const combinedUint8Array = new Uint8Array(combinedLength);
+            let currentPosition = 0;
+            for (const partData of partsInChunk) {
+                combinedUint8Array.set(partData, currentPosition);
+                currentPosition += partData.length;
+            }
+
+            const mergeNum = Math.floor(chunkStart / actualChunkSize) + 1;
+            const isSingleFile = actualChunkSize >= totalParts && chunkStart === 0;
+
+            // Save the merged chunk
+            await saveMerge_Pipeline(combinedUint8Array, mergeNum, baseFilename, isSingleFile, firstPartNum, lastPartNum, totalParts, statArea); // Pass statArea
+            mergedFileCount++;
+
+            // Update status for successfully merged instances in this chunk
+            for (const instance of chunkInstances) {
+                if (instance && typeof instance.update_stat === 'function') {
+                    // Pass translated status to update_stat
+                    instance.update_stat(fetchTranslation("statusMergedAndSaved", currentLanguage));
+                }
+            }
+            await sleep(25); // Small delay after saving chunk
+
+        } else {
+            console.warn(`Skipping merge for chunk starting at index ${chunkStart}: No valid parts found.`);
+        }
+
+        // --- IMPORTANT: Clean up instances belonging to this chunk ---
+        console.log(`Cleaning up instances for merge chunk ${chunkStart + 1}-${chunkEnd}...`);
+        // cleanupTaskInstances is defined in audio_helpers.js
+        cleanupTaskInstances(chunkInstances); // Clean up only the instances processed in this chunk
+        console.log("Chunk cleanup complete.");
+
+    } // End loop through chunks
+
+    console.log(`Attempted to save ${mergedFileCount} merged files.`);
+
+}
+
+
+/**
+ * Saves a single merged audio chunk to a file.
+ * @param {Uint8Array} combinedData - The combined audio data.
+ * @param {number} mergeNum - The sequential number of this merge chunk.
+ * @param {string} baseFilename - Base name for the file.
+ * @param {boolean} isSingleFile - True if this merge represents the entire output.
+ * @param {string} firstPartNum - The file number string (e.g., "0001") of the first part in this chunk.
+ * @param {string} lastPartNum - The file number string (e.g., "0050") of the last part in this chunk.
+ * @param {number} totalSuccessfulParts - The total number of parts being merged overall.
+ * @param {HTMLElement} [statArea=null] - Optional UI element for status updates. // Added statArea param
+ */
+async function saveMerge_Pipeline(combinedData, mergeNum, baseFilename, isSingleFile, firstPartNum, lastPartNum, totalSuccessfulParts, statArea = null) { // Added statArea param
+    const audioBlob = new Blob([combinedData.buffer], { type: 'audio/mpeg' });
+    let filename;
+
+    if (isSingleFile) {
+        // Filename for a single merged file containing all parts
+        filename = `${baseFilename}_${totalSuccessfulParts}-parts.mp3`;
+    } else {
+        // Filename for a chunk, indicating the range of parts included
+        filename = `${baseFilename}_parts_${firstPartNum}-${lastPartNum}.mp3`;
+    }
+
+    console.log(`Saving merged file: ${filename}`);
+
+    try {
+        saveAs(audioBlob, filename); // FileSaver.js
+        // Status updates for individual parts were done in doMerge_Pipeline
+        if (statArea) { // Optional status update
+            const msg = formatString(fetchTranslation("statusMergedAndSaved", currentLanguage) + ` (${filename})`);
+            statArea.value += `\n${msg}`;
+            statArea.scrollTop = statArea.scrollHeight;
+        }
+    } catch (e) {
+        console.error(`Error initiating download for merged file ${filename}:`, e);
+        // Use fetchTranslation for template
+        const alertMsgTemplate = fetchTranslation('alertSaveMergedError', currentLanguage);
+        alert(formatString(alertMsgTemplate, filename));
+        if (statArea) { // Optional status update
+            statArea.value += `\nError saving ${filename}: ${e.message}`;
+            statArea.scrollTop = statArea.scrollHeight;
+        }
+        // Re-throw the error so the caller (doMerge_Pipeline) can potentially handle it? Or just log here.
+        // throw e; // Optional: re-throw
+    }
+    // No instances to clear here, handled in the caller (doMerge_Pipeline)
+}
+
