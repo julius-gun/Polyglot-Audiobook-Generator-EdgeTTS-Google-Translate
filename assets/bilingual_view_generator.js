@@ -54,8 +54,8 @@ async function generateBilingualBook() {
     statArea?.classList.add('hide'); // Hide status area for bilingual mode
   
     // Show progress bar for translation
-    document.getElementById('progress-container').style.display = 'block';
-    document.getElementById('progress-info').style.display = 'block'; // Ensure progress info is visible
+    document.getElementById('progress-container').classList.remove('hide'); // Use classList
+    document.getElementById('progress-info').classList.remove('hide');    // Use classList
   
     // splitIntoSentences is defined in translation_utils.js
     const sentences = splitIntoSentences(sourceText);
