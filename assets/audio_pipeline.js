@@ -19,6 +19,11 @@ class AudioPipelineManager {
     /**
      * Initializes the audio pipeline manager.
      * @param {object} config - Configuration object.
+      * @param {string[] | object[]} config.tasks - Array of text chunks OR task objects.
+     *                                            If task objects, each should contain at least 'text'.
+     *                                            Other properties (voice, rate, pitch, etc.) can be included
+     *                                            to be passed down to createAndRunAudioTask.
+
      * @param {string[]} config.textChunks - Array of text chunks to process.
      * @param {object} config.audioSettings - Common audio settings.
      * @param {string} config.audioSettings.voice - The voice name (unformatted).
@@ -40,8 +45,9 @@ class AudioPipelineManager {
      */
     constructor(config) {
         // --- Configuration ---
-        this.textChunks = config.textChunks || [];
-        this.audioSettings = { volume: "+0%", ...config.audioSettings }; // Ensure volume default
+        // Accept either simple text chunks or complex task objects
+        this.tasks = config.tasks || [];
+        this.audioSettings = { volume: "+0%", ...config.audioSettings }; // Default/fallback settings
         this.concurrencyLimit = config.concurrencyLimit || 1;
         this.baseFilename = config.baseFilename || "Audiobook";
         this.mergeSettings = { enabled: false, chunkSize: Infinity, ...config.mergeSettings };
@@ -61,7 +67,7 @@ class AudioPipelineManager {
         this.activeTaskCount = 0;
         this.processedCount = 0;
         this.failedCount = 0;
-        this.totalTasks = this.textChunks.length;
+        this.totalTasks = this.tasks.length;
         this.taskInstances = new Array(this.totalTasks).fill(null); // Stores SocketEdgeTTS instances
 
         // --- Input Validation ---
@@ -72,7 +78,7 @@ class AudioPipelineManager {
             this.status = PipelineStatus.ERROR; // Prevent starting
         }
         if (this.totalTasks === 0) {
-            console.warn("AudioPipelineManager: No text chunks provided.");
+            console.warn("AudioPipelineManager: No tasks provided.");
             // No need to set error state, it just won't do anything when started.
         }
         if (!this.audioSettings.voice) {
@@ -162,30 +168,51 @@ class AudioPipelineManager {
         }
 
         const index = this.nextTaskIndex;
-        const text = this.textChunks[index];
-        const fileNum = (index + 1).toString().padStart(4, '0');
+        const taskData = this.tasks[index]; // Get the task data (string or object)
+        const text = typeof taskData === 'string' ? taskData : taskData.text; // Extract text
+        const fileNum = (index + 1).toString().padStart(4, '0'); // Sequential file number for status
 
-        console.log(`Pipeline: Queueing task ${index + 1}/${this.totalTasks}`);
+        // --- Determine Task-Specific Settings ---
+        // Start with manager defaults, override with task-specific settings if available
+        const taskVoice = taskData.voice || this.audioSettings.voice;
+        const taskRate = taskData.rate || this.audioSettings.rate;
+        const taskPitch = taskData.pitch || this.audioSettings.pitch;
+        const taskVolume = taskData.volume || this.audioSettings.volume;
+        const taskFinalIndex = taskData.finalIndex ?? index; // Use provided finalIndex or default to sequence index
+
+        if (!taskVoice) {
+             console.error(`Pipeline: Task ${index + 1} has no voice defined (neither in task nor manager defaults). Skipping.`);
+             // Simulate immediate failure for this task
+             this._handleTaskCompletion(index, true, null);
+             // Use setTimeout to yield and try the *next* task if available
+             setTimeout(() => this._tryQueueNextTask(), 0);
+             return;
+        }
+        // --- End Task-Specific Settings ---
+
+
+        console.log(`Pipeline: Queueing task ${index + 1}/${this.totalTasks} (Final Index: ${taskFinalIndex})`);
         this._updateTaskStatus(index, "statusQueued"); // Update status immediately using key
 
         // Increment *before* async operation
         this.nextTaskIndex++;
         this.activeTaskCount++;
 
-        const formattedVoice = this._formatVoiceName(this.audioSettings.voice);
+        const formattedVoice = this._formatVoiceName(taskVoice); // Format the specific voice for this task
 
         const taskConfig = {
-            index: index,
+            index: index, // The sequential index in the manager's task array
+            finalIndex: taskFinalIndex, // The intended final order index (for multi-lang)
             text: text,
             voice: formattedVoice,
-            rate: this.audioSettings.rate,
-            pitch: this.audioSettings.pitch,
-            volume: this.audioSettings.volume,
-            baseFilename: this.baseFilename,
-            fileNum: fileNum,
-            statArea: this.statArea, // Pass statArea ref to the task runner
-            mergeEnabled: this.mergeSettings.enabled, // Pass merge flag
-            retrySettings: this.retrySettings // --- ADDED: Pass retry settings ---
+            rate: taskRate,
+            pitch: taskPitch,
+            volume: taskVolume,
+            baseFilename: this.baseFilename, // Base filename might still be useful context
+            fileNum: fileNum, // Sequential number for status line
+            statArea: this.statArea,
+            mergeEnabled: false, // Merging handled separately for multi-language
+            retrySettings: this.retrySettings
         };
 
         try {
@@ -212,7 +239,7 @@ class AudioPipelineManager {
 
     /**
      * Handles the completion callback from createAndRunAudioTask.
-     * @param {number} completedIndex - The index of the completed task.
+     * @param {number} completedIndex - The sequential index of the completed task in the manager's array.
      * @param {boolean} errorOccurred - True if the task failed (after retries).
      * @param {SocketEdgeTTS | null} instance - The completed SocketEdgeTTS instance (or null if creation failed).
      */
@@ -244,6 +271,11 @@ class AudioPipelineManager {
             // Instance should have updated its status to "Completed" or similar via onSocketClose
             // We can rely on that or force an update here. Let's rely on instance for now.
             // this._updateTaskStatus(completedIndex, "Success");
+        }
+        // Store the finalIndex from the instance if available (it should have been passed down)
+        // This is crucial for sorting later in the multi-language completion handler
+        if (instance) {
+            instance.finalIndex = instance.finalIndex ?? completedIndex; // Ensure finalIndex is set
         }
 
         // --- Reporting ---

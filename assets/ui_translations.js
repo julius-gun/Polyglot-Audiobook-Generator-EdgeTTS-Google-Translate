@@ -119,5 +119,6 @@ const translations = {
         epubDefaultFilename: 'Bilingual Book.epub', // Default EPUB filename
         processingFileDefaultName: 'Book', // Default name in processing_file.js
         bookViewWindowTitle: 'Book View', // Title for the book view popup window
+        audioGenerationProgressTitle: "Audio Generation Progress", // <<< ADDED KEY
     },
 };

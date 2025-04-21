@@ -7,6 +7,7 @@
 //   - splitIntoSentences, mergeShortSentences, createTranslationBatches, sleep (translation_utils.js)
 //   - updateProgress (progress_bar.js)
 //   - displayTranslatedBatch (ui.js)
+//   - getSelectedTargetLanguagesAndVoices (ui_helpers.js) // Added dependency
 // - UI Elements: source-text, sl, sl-voice, tl[1-4]-container, tl[1-4], tl[1-4]-voice, output, stat-area, progress-container, progress-info, translation-finished-message, open-book-view-button, save-epub-button, reload-page-button
 
 async function generateBilingualBook() {
@@ -19,37 +20,33 @@ async function generateBilingualBook() {
 
     const sourceText = document.getElementById('source-text').value;
     let sourceLang = document.getElementById('sl').value;
-    // Get selected voices
-    const sourceVoice = document.getElementById('sl-voice').value; // Get source voice
+    // Get selected source voice (though not directly used in bilingual text view)
+    const sourceVoice = document.getElementById('sl-voice').value;
   
     if (sourceLang === 'auto') {
       // detectLanguage is defined in translation_api.js
       sourceLang = await detectLanguage(sourceText) || 'en'; // Default to English if detection fails
-      // Note: If sourceLang was 'auto', sourceVoice might not be relevant or might need special handling depending on TTS capabilities.
-      // For now, we just capture the selected voice, assuming the user selected one appropriate for potential detected languages or a multilingual voice.
-    }
-    const targetLangs = [];
-    const targetVoices = []; // Array to store target voices
-    const maxLanguages = 4;
-    // Collect target languages AND voices from visible dropdowns
-    for (let i = 1; i <= maxLanguages; i++) {
-      const container = document.getElementById(`tl${i}-container`);
-      // Check if the container exists AND is NOT hidden
-      if (container && !container.classList.contains('hide')) {
-        const langSelect = document.getElementById(`tl${i}`);
-        const voiceSelect = document.getElementById(`tl${i}-voice`); // Get voice select
-        if (langSelect && langSelect.value) {
-          targetLangs.push(langSelect.value);
-          // Add the corresponding voice, ensuring the voice select exists
-          targetVoices.push(voiceSelect ? voiceSelect.value : null); // Store null if voice select not found (shouldn't happen)
-        }
       }
-    }
+
+    // --- Get Selected Target Languages using Helper ---
+    // getSelectedTargetLanguagesAndVoices is defined in ui_helpers.js
+    const targetVoicesMap = getSelectedTargetLanguagesAndVoices();
+    const targetLangs = Object.keys(targetVoicesMap); // Get language codes from the map keys
+    // Note: targetVoices array is not needed for bilingual text view, only the languages.
   
     console.log("Source Language:", sourceLang);
     console.log("Source Voice:", sourceVoice);
     console.log("Target Languages:", targetLangs);
-    console.log("Target Voices:", targetVoices);
+
+    // Check if any target languages were actually selected
+    if (targetLangs.length === 0) {
+        alert("Please select at least one target language."); // Or use fetchTranslation
+        // Potentially hide progress bar again if shown prematurely
+        document.getElementById('progress-container')?.classList.add('hide');
+        document.getElementById('progress-info')?.classList.add('hide');
+        return; // Stop execution
+    }
+
   
     const bookContainer = document.getElementById('output');
     bookContainer.innerHTML = ''; // Clear previous bilingual output
@@ -81,14 +78,14 @@ async function generateBilingualBook() {
     // translateBatch is defined in translation_api.js
     // currentLanguage is a global variable from main.js
     const translationPromises = batches.map(batch =>
-      translateBatch(batch, sourceLang, targetLangs, currentLanguage)
+      translateBatch(batch, sourceLang, targetLangs, currentLanguage) // Pass targetLangs array
     );
   
     // Use Promise.all to wait for all batches, but process each as it completes
     for (const promise of translationPromises) {
       const { batch: translatedBatch, translations: batchTranslations } = await promise; // Renamed local variable
       // displayTranslatedBatch is defined in ui.js
-      displayTranslatedBatch(translatedBatch, batchTranslations, sourceLang, targetLangs);
+      displayTranslatedBatch(translatedBatch, batchTranslations, sourceLang, targetLangs); // Pass targetLangs array
   
       translatedSentencesCount += translatedBatch.length;
       updateProgress(translatedSentencesCount, totalSentences, startTime);

@@ -180,7 +180,7 @@ async function generateSingleLanguageAudiobook() {
 
     // 7. Configure and Start the Pipeline
     const pipelineConfig = {
-        textChunks: audioChunks,
+        tasks: audioChunks, // Use the 'tasks' property as preferred by the updated manager
         audioSettings: {
             voice: voice, // Pass the raw voice value, manager will format
             rate: rate,

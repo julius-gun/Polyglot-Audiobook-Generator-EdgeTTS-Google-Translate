@@ -336,49 +336,70 @@ function hideTargetLang(containerId) {
   }
 }
 
+// Function to update the title/label above the progress bar
+function updateProgressTitle(titleKey) {
+  const progressTitleElement = document.getElementById('progress-title'); // Assuming an element with this ID exists or will be added
+  if (progressTitleElement) {
+      progressTitleElement.textContent = fetchTranslation(titleKey, currentLanguage);
+      progressTitleElement.classList.remove('hide');
+  } else {
+      // Fallback: Log if element not found
+      console.warn("Progress title element ('progress-title') not found. Cannot update title.");
+      // As a fallback, maybe update the progress-info area?
+      const progressInfo = document.getElementById('progress-info');
+      if (progressInfo) {
+           progressInfo.innerHTML = `<strong>${fetchTranslation(titleKey, currentLanguage)}</strong><br>` + progressInfo.innerHTML;
+      }
+  }
+}
+
 // Displays a batch of translated sentences in the output area (already synchronous regarding UI translations)
 // Depends on: translations (global from ui_translations.js), currentLanguage (global from main.js)
 function displayTranslatedBatch(batch, translationsData, sourceLang, targetLangs) {
   const bookContainer = document.getElementById('output');
+    if (!bookContainer) return; // Exit if container not found
 
   for (let i = 0; i < batch.length; i++) {
-    const paragraph = document.createElement('div');
-    paragraph.style.display = "flex";
-    paragraph.style.justifyContent = "space-between";
-    paragraph.style.gap = "10px";
-    paragraph.style.marginBottom = "10px";
-    paragraph.className = 'paragraph';
+        const paragraphContainer = document.createElement('div');
+        // paragraphContainer.style.display = "flex"; // Use CSS class instead
+        // paragraphContainer.style.justifyContent = "space-between";
+        // paragraphContainer.style.gap = "10px";
+        // paragraphContainer.style.marginBottom = "10px";
+        paragraphContainer.className = 'paragraph'; // Use class from styles
 
-    const sourcePara = document.createElement('div');
-    sourcePara.className = 'source';
-    sourcePara.textContent = batch[i];
-    paragraph.appendChild(sourcePara);
+        const sourceDiv = document.createElement('div');
+        sourceDiv.className = 'source';
+        sourceDiv.textContent = batch[i];
+        paragraphContainer.appendChild(sourceDiv);
 
+        // Check RTL for source
     if (['ar', 'he', 'fa', 'ur', 'ks', 'ps', 'ug', 'ckb', 'pa', 'sd'].includes(sourceLang)) {
-      sourcePara.className += " rtl";
+            sourceDiv.classList.add("rtl");
     }
 
     for (const targetLang of targetLangs) {
-      const targetPara = document.createElement('div');
-      targetPara.className = 'lang-column';
+            const targetDiv = document.createElement('div');
+            targetDiv.className = 'lang-column'; // Use class from styles
       if (translationsData[targetLang] && translationsData[targetLang][i] !== undefined) {
-        targetPara.textContent = translationsData[targetLang][i];
+                targetDiv.textContent = translationsData[targetLang][i];
       } else {
-        // Use synchronous fetchTranslation to get the error message
         const errorMsg = fetchTranslation('translationError', currentLanguage);
-        targetPara.textContent = errorMsg;
+                targetDiv.textContent = errorMsg;
+                targetDiv.style.color = 'red'; // Indicate error visually
         console.warn(`Missing translation for sentence index ${i} in target language ${targetLang}`);
       }
 
+            // Check RTL for target
       if (['ar', 'he', 'fa', 'ur', 'ks', 'ps', 'ug', 'ckb', 'pa', 'sd'].includes(targetLang)) {
-        targetPara.className += " rtl";
+                targetDiv.classList.add("rtl");
       }
-      paragraph.appendChild(targetPara);
-    } // End inner for loop
+            paragraphContainer.appendChild(targetDiv);
+        }
 
-    bookContainer.appendChild(paragraph);
+        bookContainer.appendChild(paragraphContainer);
   } // End outer for loop
 } // End displayTranslatedBatch function
 
 // Ensure there are no missing closing braces or syntax errors introduced.
 // The last line should be the closing brace of displayTranslatedBatch
+

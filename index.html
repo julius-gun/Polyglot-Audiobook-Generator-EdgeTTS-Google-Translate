@@ -255,14 +255,16 @@
 
   <!-- Status and Output Area -->
   <section class="status-area">
+    <!-- NEW: Progress Title -->
+    <h4 id="progress-title" class="hide mb-1"></h4> <!-- Initially hidden, updated by JS -->
+
     <!-- Progress Bar -->
   <div id="progress-container" class="hide mb-1"> <!-- Initially hidden -->
       <div id="progress-bar">0%</div>
     </div>
     <!-- Progress Info (including ETA) -->
   <div id="progress-info" class="hide mb-2 text-muted"> <!-- Initially hidden -->
-      <span id="progress-translated-label"></span>: <span id="progress-translated-value">0 / 0</span> | <!-- Labels updated by JS -->
-      <span id="progress-eta-label"></span>: <span id="progress-eta-value"></span> <!-- Labels updated by JS -->
+      <!-- Content updated by JS -->
     </div>
     <div id="translation-finished-message" class="hide mb-2"></div> <!-- Text updated by JS -->
 
