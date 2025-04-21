@@ -1,5 +1,5 @@
 // Configuration constants
-const prioritizedLanguages = ['en', 'ru', 'zh', 'hi', 'es', 'fr', 'ar', 'pt', 'de'];
+const prioritizedLanguages = ['en', 'ru', 'zh', 'hi', 'es-419', 'fr-FR', 'ar', 'pt', 'de'];
 
 // Note: Other constants like maxCodeLength might need to be defined globally
 // or passed explicitly if functions depending on them are moved outside main.js
