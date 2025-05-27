@@ -20,11 +20,18 @@ let multiLangSentences = []; // Array to hold { original: "...", translations: {
 let multiLangPipelineManager = null;
 let multiLangBaseFilename = "MultiLangAudiobook"; // Default filename
 
+// Constants for translation batching
+const GOOGLE_TRANSLATE_CHARACTER_LIMIT = 4500; // Character limit per API call
+const API_CALL_DELAY_MIN_MS = 200;
+const API_CALL_DELAY_MAX_MS = 500;
+
+
 async function generateMultiLanguageAudio(sourceLang, sourceVoice, targetVoicesMap) {
     console.log("--- generateMultiLanguageAudio START ---");
     // Reset UI elements specifically for this flow
     document.getElementById('reload-page-button')?.classList.add('hide');
-    document.getElementById('output').innerHTML = ''; // Clear previous output
+    const bookContainer = document.getElementById('output'); // Get bookContainer early
+    bookContainer.innerHTML = ''; // Clear previous output
     document.getElementById('stat-area')?.classList.add('hide');
     document.getElementById('translation-finished-message')?.classList.add('hide');
     document.getElementById('open-book-view-button')?.classList.add('hide');
@@ -39,8 +46,8 @@ async function generateMultiLanguageAudio(sourceLang, sourceVoice, targetVoicesM
         return;
     }
 
-    // --- 1. Translation Phase ---
-    console.log("Phase 1: Translation");
+    // --- 1. Translation Phase (with concurrent display) ---
+    console.log("Phase 1: Translation & Display");
     const progressContainer = document.getElementById('progress-container');
     const progressBar = document.getElementById('progress-bar');
     const progressInfo = document.getElementById('progress-info');
@@ -64,62 +71,125 @@ async function generateMultiLanguageAudio(sourceLang, sourceVoice, targetVoicesM
 
     multiLangSentences = []; // Reset global array
     const totalSentencesToTranslate = originalSentences.length;
-    let translatedSentencesCount = 0;
+    let translatedSentencesCount = 0; // Tracks how many of the original sentences have been processed
+    let currentOriginalSentenceIndex = 0; // Tracks the current position in originalSentences array
     const translationStartTime = Date.now();
     updateProgress(0, totalSentencesToTranslate, translationStartTime); // Initial call for translation progress
 
-    console.log(`Translating ${originalSentences.length} sentences from ${sourceLang} to ${targetLangs.join(', ')}...`);
+    console.log(`Source text split into ${originalSentences.length} sentences.`);
+
+    // Create sub-batches from originalSentences
+    // createTranslationBatches is from translation_utils.js
+    const sentenceSubBatches = createTranslationBatches(originalSentences, GOOGLE_TRANSLATE_CHARACTER_LIMIT);
+    console.log(`Created ${sentenceSubBatches.length} sub-batches for translation API calls.`);
 
     try {
-        // translateBatch is from translation_api.js
-        const translationResult = await translateBatch(originalSentences, sourceLang, targetLangs, currentLanguage);
+        for (let batchIndex = 0; batchIndex < sentenceSubBatches.length; batchIndex++) {
+            const currentSentenceSubBatch = sentenceSubBatches[batchIndex];
+            if (currentSentenceSubBatch.length === 0) continue;
 
-        if (translationResult && translationResult.translations) {
-            for (let i = 0; i < originalSentences.length; i++) {
+            console.log(`Translating sub-batch ${batchIndex + 1}/${sentenceSubBatches.length} (${currentSentenceSubBatch.length} sentences) from ${sourceLang} to ${targetLangs.join(', ')}...`);
+
+        // translateBatch is from translation_api.js
+            // It now processes a smaller sub-batch of sentences
+            const subBatchTranslationResult = await translateBatch(currentSentenceSubBatch, sourceLang, targetLangs, currentLanguage);
+
+            const sentencesInThisSubBatchForDisplay = []; // Temporary store for display
+
+            if (subBatchTranslationResult && subBatchTranslationResult.translations) {
+                for (let i = 0; i < currentSentenceSubBatch.length; i++) {
+                    const originalSentenceText = currentSentenceSubBatch[i];
                 const sentenceData = {
-                    original: originalSentences[i],
+                        original: originalSentenceText,
                     translations: {}
                 };
+                    const displayTranslationsDataForSentence = {};
+
                 for (const targetLang of targetLangs) {
-                    if (translationResult.translations[targetLang] && translationResult.translations[targetLang][i]) {
-                        sentenceData.translations[targetLang] = translationResult.translations[targetLang][i];
-                    } else {
-                        sentenceData.translations[targetLang] = fetchTranslation('translationError', currentLanguage);
-                        console.warn(`Missing translation for sentence ${i} to lang ${targetLang}`);
+                        if (subBatchTranslationResult.translations[targetLang] && subBatchTranslationResult.translations[targetLang][i]) {
+                            sentenceData.translations[targetLang] = subBatchTranslationResult.translations[targetLang][i];
+                            displayTranslationsDataForSentence[targetLang] = [subBatchTranslationResult.translations[targetLang][i]];
+                        } else {
+                            const errorMsg = fetchTranslation('translationError', currentLanguage);
+                            sentenceData.translations[targetLang] = errorMsg;
+                            displayTranslationsDataForSentence[targetLang] = [errorMsg];
+                            console.warn(`Missing translation for sentence in sub-batch (original index approx. ${currentOriginalSentenceIndex + i}) to lang ${targetLang}`);
+                        }
                     }
+                    multiLangSentences.push(sentenceData);
+                    
+                    // Prepare for immediate display
+                    // displayTranslatedBatch is from ui.js expects arrays for original and translations
+                    displayTranslatedBatch([originalSentenceText], displayTranslationsDataForSentence, sourceLang, targetLangs);
+                    await sleep(5); // Small delay for UI update after each sentence
                 }
-                multiLangSentences.push(sentenceData);
-                translatedSentencesCount++;
+                translatedSentencesCount += currentSentenceSubBatch.length;
                 updateProgress(translatedSentencesCount, totalSentencesToTranslate, translationStartTime);
+
+                    } else {
+                // Handle error for the sub-batch: fill with error messages and display them
+                console.warn(`Translation result was invalid for sub-batch ${batchIndex + 1}. Filling with error messages.`);
+                for (let i = 0; i < currentSentenceSubBatch.length; i++) {
+                    const originalSentenceText = currentSentenceSubBatch[i];
+                    const sentenceData = {
+                        original: originalSentenceText,
+                        translations: {}
+                    };
+                    const displayTranslationsDataForSentence = {};
+                    const errorMsg = fetchTranslation('translationError', currentLanguage);
+
+                    for (const targetLang of targetLangs) {
+                        sentenceData.translations[targetLang] = errorMsg;
+                        displayTranslationsDataForSentence[targetLang] = [errorMsg];
+                    }
+                    multiLangSentences.push(sentenceData);
+                    displayTranslatedBatch([originalSentenceText], displayTranslationsDataForSentence, sourceLang, targetLangs);
+                    await sleep(5); // Small delay for UI update
+                }
+                translatedSentencesCount += currentSentenceSubBatch.length;
+                updateProgress(translatedSentencesCount, totalSentencesToTranslate, translationStartTime);
+                // Potentially throw an error here if one sub-batch failure should stop everything
+                // For now, we continue and try to translate other batches.
             }
-            console.log("All sentences translated and stored in multiLangSentences.");
-        } else {
-            throw new Error("Translation result was invalid or missing translations map.");
+
+            currentOriginalSentenceIndex += currentSentenceSubBatch.length; // Update the overall sentence counter
+
+            // Sleep if not the last batch
+            if (batchIndex < sentenceSubBatches.length - 1) {
+                // sleep is from translation_utils.js
+                await sleep(API_CALL_DELAY_MIN_MS, API_CALL_DELAY_MAX_MS);
+            }
         }
+        console.log("All sub-batches processed. Total sentences in multiLangSentences:", multiLangSentences.length);
+
+        if (multiLangSentences.length !== totalSentencesToTranslate) {
+            console.warn(`Mismatch in sentence count. Expected ${totalSentencesToTranslate}, got ${multiLangSentences.length}. This might indicate an issue in batch processing or result aggregation.`);
+            // Potentially throw an error or alert the user
+        }
+
     } catch (error) {
-        console.error("Error during batch translation:", error);
+        console.error("Error during batched translation process:", error);
         alert(fetchTranslation('alertTranslationFailed', currentLanguage));
         if (progressContainer) progressContainer.classList.add('hide');
         if (progressInfo) progressInfo.classList.add('hide');
         document.getElementById('reload-page-button')?.classList.remove('hide');
         return;
     }
+    
+    // The old "Phase 2: Display Translated Sentences" is now integrated above.
+    // console.log("Phase 2: Displaying Translations"); // No longer a separate phase
+    // const bookContainer = document.getElementById('output'); // Already defined
+    // bookContainer.innerHTML = ''; // Already cleared at the start
 
-    // --- 2. Display Translated Sentences ---
-    console.log("Phase 2: Displaying Translations");
-    const bookContainer = document.getElementById('output');
-    bookContainer.innerHTML = ''; // Ensure it's clear
-
-    for (const sentenceData of multiLangSentences) {
-        const displayBatch = [sentenceData.original];
-        const displayTranslationsData = {};
-        for (const lang of targetLangs) {
-            displayTranslationsData[lang] = [sentenceData.translations[lang] || fetchTranslation('translationError', currentLanguage)];
-        }
-        // displayTranslatedBatch is from ui.js
-        displayTranslatedBatch(displayBatch, displayTranslationsData, sourceLang, targetLangs);
-        await sleep(5); // Small delay for UI update, especially with many sentences
-    }
+    // for (const sentenceData of multiLangSentences) { // This loop is removed
+    //     const displayBatch = [sentenceData.original];
+    //     const displayTranslationsData = {};
+    //     for (const lang of targetLangs) {
+    //         displayTranslationsData[lang] = [sentenceData.translations[lang] || fetchTranslation('translationError', currentLanguage)];
+    //     }
+    //     displayTranslatedBatch(displayBatch, displayTranslationsData, sourceLang, targetLangs);
+    //     await sleep(5); 
+    // }
 
     document.getElementById('translation-finished-message')?.classList.remove('hide');
     if (progressBar) {
