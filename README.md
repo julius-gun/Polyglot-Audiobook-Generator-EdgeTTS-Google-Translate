@@ -18,7 +18,6 @@ A web-based interface for Microsoft Edge's Text-to-Speech service that allows yo
   - Pitch adjustment (-50Hz to +50Hz)
   - Volume control
 - Multi-threaded processing for faster conversion
-- Customizable text processing modes (V1, V2, V3) for handling periods and punctuation
 - Option to merge multiple MP3 files
 - Progress tracking with detailed status updates
 - Settings persistence across sessions
@@ -26,16 +25,6 @@ A web-based interface for Microsoft Edge's Text-to-Speech service that allows yo
 
 ## Usage
 
-1. Open the web interface
-2. Select your preferred voice from the dropdown menu
-3. Adjust speech parameters (speed, pitch, volume) as needed
-4. Either paste your text directly or upload supported file formats
-5. Click "Save to MP3" to start the conversion
-6. Choose a directory to save the generated audio files
-
-## RVC
-
-Set merge chunk size by 1. Then process with https://docs.applio.org/applio/getting-started/installation
 
 ## Credits
 
