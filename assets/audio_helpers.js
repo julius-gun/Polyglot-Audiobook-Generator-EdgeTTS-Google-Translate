@@ -318,3 +318,30 @@ async function saveMerge_Pipeline(combinedData, mergeNum, baseFilename, isSingle
     // No instances to clear here, handled in the caller (doMerge_Pipeline)
 }
 
+/**
+ * Concatenates an array of Uint8Array objects into a single Uint8Array.
+ * @param {Array<Uint8Array>} arrays - An array of Uint8Array objects to concatenate.
+ * @returns {Uint8Array} A new Uint8Array containing all the data from the input arrays.
+ */
+function concatenateUint8Arrays(arrays) {
+    if (!arrays || arrays.length === 0) {
+        return new Uint8Array(0);
+    }
+
+    let totalLength = 0;
+    for (const arr of arrays) {
+        if (arr) { // Ensure array part is not null/undefined
+            totalLength += arr.length;
+        }
+    }
+
+    const result = new Uint8Array(totalLength);
+    let offset = 0;
+    for (const arr of arrays) {
+        if (arr) { // Ensure array part is not null/undefined
+            result.set(arr, offset);
+            offset += arr.length;
+        }
+    }
+    return result;
+}
