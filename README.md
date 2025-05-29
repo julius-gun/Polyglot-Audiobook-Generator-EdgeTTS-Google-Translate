@@ -1,6 +1,4 @@
 # Polyglot Audiobook Generator - EdgeTTS Google Translate
-
-# Attention, this program does not yet work correctly, please wait.
 A web-based interface for Microsoft Edge's Text-to-Speech service that allows you to convert text to speech using various neural voices.
 
 🔗 [Try it live](https://julius-gun.github.io/Polyglot-Audiobook-Generator-EdgeTTS-Google-Translate/)
