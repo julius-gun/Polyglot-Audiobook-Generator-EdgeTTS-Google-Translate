@@ -392,11 +392,7 @@ button[type="submit"]:hover,
     margin-bottom: 0; /* Override default label margin */
     font-weight: 500;
     color: var(--color-text-primary);
-}
-
-/* Specific styling for the FIRST label in the container (e.g., "Source Language:") */
-.language-and-voice-container .language-row-label:first-child {
-    width: 150px; /* Fixed width for alignment */
+    white-space: nowrap; /* Prevent labels from wrapping */
 }
 
 /* Selects within the new container (Language and Voice dropdowns) */
@@ -470,8 +466,60 @@ button[type="submit"]:hover,
     border: none;
 }
 
+/* Container for the editable value display and input */
+.value-container {
+    position: relative;
+    display: inline-flex;
+    justify-content: flex-end;
+    align-items: center;
+    width: 100%;
+    height: 100%;
+}
+
+/* The number input field hidden by default */
+.value-input {
+    width: 100%;
+    height: 24px; /* A fixed height for consistency */
+    font-family: monospace;
+    font-size: var(--font-size-sm);
+    color: var(--color-text-primary);
+    text-align: right;
+    padding: 2px 4px;
+    border: 1px solid var(--color-primary);
+    border-radius: var(--border-radius-sm);
+    background-color: var(--color-background);
+    box-sizing: border-box;
+    -moz-appearance: textfield; /* Hide arrows on Firefox */
+}
+
+/* Hide number input arrows on Chrome, Safari, Edge */
+.value-input::-webkit-outer-spin-button,
+.value-input::-webkit-inner-spin-button {
+    -webkit-appearance: none;
+    margin: 0;
+}
+
+/* Styles for the value text displays */
 .rate-value,
-.pitch-value,
+.pitch-value {
+    font-family: monospace;
+    font-size: var(--font-size-sm);
+    color: var(--color-text-secondary);
+    user-select: none; /* Prevent text selection on click */
+    cursor: pointer;
+    padding: 2px 4px;
+    border-radius: var(--border-radius-sm);
+    transition: background-color 0.15s ease-in-out;
+    width: 100%; /* Ensure it fills the container for consistent clicking */
+    text-align: right; /* Align text to the right */
+}
+
+.rate-value:hover,
+.pitch-value:hover {
+    background-color: rgba(0, 0, 0, 0.08); /* Subtle hover effect */
+}
+
+/* Keep styles for non-editable values separate for clarity */
 .threads-value,
 .merge-value {
     text-align: right;
@@ -480,13 +528,14 @@ button[type="submit"]:hover,
     color: var(--color-text-secondary);
 }
 
+
 /* Hide rate/pitch controls by default */
 .rate-pitch-controls {
     display: none;
 }
 /* Show when settings are visible */
 body.settings-visible .rate-pitch-controls {
-    display: grid; /* Use grid to match the new layout */
+    display: grid; /* Use grid when visible */
 }
 
 /* Language Row Action Buttons */

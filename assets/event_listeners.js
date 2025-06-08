@@ -104,6 +104,9 @@ function attachEventListeners() {
     }
   });
 
+  // --- Listeners for Editable Rate/Pitch Values ---
+  attachValueEditorListeners();
+
   const fileInput = document.getElementById('file-input');
   if (fileInput) {
     fileInput.removeEventListener('change', handleFileInsert); // Prevent duplicates
@@ -220,6 +223,95 @@ function handleSliderChange(event) {
       // console.warn("Could not find value span for slider:", slider.id); // Optional warning
   }
 }
+
+// --- Event Handlers for Editable Rate/Pitch Values ---
+
+function attachValueEditorListeners() {
+    document.querySelectorAll('.value-display').forEach(display => {
+        display.removeEventListener('click', handleValueDisplayClick); // Prevent duplicates
+        display.addEventListener('click', handleValueDisplayClick);
+    });
+
+    document.querySelectorAll('.value-input').forEach(input => {
+        input.removeEventListener('blur', handleValueInputBlur);
+        input.addEventListener('blur', handleValueInputBlur);
+        input.removeEventListener('keydown', handleValueInputKeydown);
+        input.addEventListener('keydown', handleValueInputKeydown);
+    });
+}
+
+function handleValueDisplayClick(event) {
+    const displaySpan = event.currentTarget;
+    const container = displaySpan.closest('.value-container');
+    if (!container) return;
+
+    const input = container.querySelector('.value-input');
+    const slider = container.closest('.slider-container')?.querySelector('input[type="range"]');
+
+    if (!input || !slider) return;
+
+    // Show input, hide display
+    displaySpan.classList.add('hide');
+    input.classList.remove('hide');
+
+    // Set input value from the slider's current value and focus
+    input.value = slider.value;
+    input.focus();
+    input.select();
+}
+
+function handleValueInputBlur(event) {
+    updateValueFromInput(event.currentTarget);
+}
+
+function handleValueInputKeydown(event) {
+    if (event.key === 'Enter') {
+        event.preventDefault(); // Prevent form submission if any
+        updateValueFromInput(event.currentTarget);
+    } else if (event.key === 'Escape') {
+        cancelValueEdit(event.currentTarget);
+    }
+}
+
+function updateValueFromInput(input) {
+    const container = input.closest('.value-container');
+    if (!container) return;
+    
+    const displaySpan = container.querySelector('.value-display');
+    const slider = container.closest('.slider-container')?.querySelector('input[type="range"]');
+    
+    if (!displaySpan || !slider) return;
+
+    // Get value, validate, and clamp it
+    let newValue = parseInt(input.value, 10);
+    const min = parseInt(slider.min, 10);
+    const max = parseInt(slider.max, 10);
+
+    if (isNaN(newValue)) {
+        newValue = slider.value; // Revert if not a number
+    } else {
+        newValue = Math.max(min, Math.min(max, newValue)); // Clamp between min and max
+    }
+
+    slider.value = newValue;
+    slider.dispatchEvent(new Event('input', { bubbles: true }));
+
+    input.classList.add('hide');
+    displaySpan.classList.remove('hide');
+}
+
+function cancelValueEdit(input) {
+    const container = input.closest('.value-container');
+    if (!container) return;
+
+    const displaySpan = container.querySelector('.value-display');
+    if (!displaySpan) return;
+
+    input.classList.add('hide');
+    displaySpan.classList.remove('hide');
+}
+
+// --- End Event Handlers for Editable Values ---
 
 // Handler for file input changes (MOVED FROM texts_converter.js)
 // Depends on: insertTextIntoSourceArea, convertFb2ToTxt, convertEpubToTxt, convertZipToTxt (from texts_converter.js)
