@@ -229,6 +229,7 @@ button[type="submit"]:hover,
 }
 .button-subtle i { /* Style icon inside subtle button */
     font-size: 1.1em; /* Slightly larger icon */
+    vertical-align: middle; /* Better alignment with text */
 }
 
 .button-subtle:hover {
@@ -362,54 +363,69 @@ button[type="submit"]:hover,
 
 /* Language Rows */
 .language-row {
-    display: flex;
-    align-items: flex-start; /* Align items to the top */
+    display: grid;
+    /* Define 3 columns: [Lang/Voice Controls] [Sliders] [Action Buttons] */
+    grid-template-columns: auto 300px auto;
+    align-items: start;
     gap: var(--space-md);
     padding: var(--space-md);
     border: 1px solid var(--color-border);
     border-radius: var(--border-radius-md);
-    background-color: var(--color-background); /* White background */
+    background-color: var(--color-background);
     box-shadow: var(--box-shadow-sm);
-    flex-wrap: wrap; /* Allow wrapping on smaller screens */
 }
 .language-row:not(:last-child) {
     margin-bottom: var(--space-md); /* Space between rows */
 }
 
+/* NEW: Container for Language and Voice Dropdowns */
+.language-and-voice-container {
+    display: flex;
+    align-items: center;
+    gap: var(--space-md);
+    min-width: 0; /* Allow shrinking */
+}
+
+/* General Label within a language row */
 .language-row-label {
-    flex-basis: 120px; /* Fixed width for labels */
-    flex-shrink: 0;
-    margin-bottom: 0; /* Remove default margin */
-    padding-top: var(--space-sm); /* Align text baseline with select */
+    flex-shrink: 0; /* Prevent labels from shrinking */
+    margin-bottom: 0; /* Override default label margin */
     font-weight: 500;
     color: var(--color-text-primary);
 }
 
-.language-row select {
-    flex: 1 1 180px; /* Allow selects to grow/shrink, base width 180px */
-    min-width: 150px;
+/* Specific styling for the FIRST label in the container (e.g., "Source Language:") */
+.language-and-voice-container .language-row-label:first-child {
+    width: 150px; /* Fixed width for alignment */
 }
+
+/* Selects within the new container (Language and Voice dropdowns) */
+.language-and-voice-container select {
+    width: 220px; /* Fixed width for alignment */
+    flex: none; /* Disable flex-grow/shrink behavior */
+}
+
 
 /* Voice Controls within Language Row */
 .voice-controls {
     display: flex;
     flex-direction: column;
     gap: var(--space-sm);
-    flex-basis: 200px; /* Fixed width for voice controls area */
-    flex-shrink: 0;
     padding-top: var(--space-xs); /* Align top slightly */
 }
 
+/* Use Grid for perfect slider alignment */
 .slider-container {
-    display: flex;
+    display: grid;
+    /* Define 3 columns: [Label] [Slider] [Value] for perfect alignment */
+    grid-template-columns: 45px 1fr 55px;
     align-items: center;
     gap: var(--space-sm);
     font-size: var(--font-size-sm);
 }
 
 .slider-container label {
-    flex-basis: 40px; /* Fixed width for Rate/Pitch labels */
-    flex-shrink: 0;
+    /* No flex properties needed */
     text-align: right;
     color: var(--color-text-secondary);
     margin-bottom: 0;
@@ -419,7 +435,8 @@ button[type="submit"]:hover,
 .pitch-slider,
 .max-threads,
 .mergefiles {
-    flex-grow: 1;
+    /* No flex properties needed */
+    width: 100%; /* Fill the available grid cell */
     height: 8px; /* Slimmer slider */
     cursor: pointer;
     appearance: none;
@@ -457,7 +474,6 @@ button[type="submit"]:hover,
 .pitch-value,
 .threads-value,
 .merge-value {
-    min-width: 45px; /* Ensure space for values */
     text-align: right;
     font-family: monospace;
     font-size: var(--font-size-sm);
@@ -470,7 +486,7 @@ button[type="submit"]:hover,
 }
 /* Show when settings are visible */
 body.settings-visible .rate-pitch-controls {
-    display: flex;
+    display: grid; /* Use grid to match the new layout */
 }
 
 /* Language Row Action Buttons */
@@ -478,13 +494,18 @@ body.settings-visible .rate-pitch-controls {
     display: flex;
     align-items: center; /* Vertically align buttons */
     gap: var(--space-xs);
-    margin-left: auto; /* Push buttons to the right */
     padding-top: var(--space-xs); /* Align with selects */
 }
 
+/* Special handling for the source language row's action container to ensure vertical alignment */
+#sl-container .language-row-actions {
+    min-height: 38px; /* Match the height of a select box to keep rows aligned */
+}
+
+
 .add-lang-button,
 .remove-lang-button {
-    /* Uses button-subtle and button-danger styles */
+    white-space: nowrap; /* Prevent text from wrapping */
 }
 
 /* Advanced Settings */
@@ -500,7 +521,7 @@ body.settings-visible .rate-pitch-controls {
     font-size: 1.1rem;
 }
 #advanced-audio-settings .slider-container label {
-    flex-basis: 80px; /* Wider label for Threads/Merge */
+    /* No flex-basis needed, grid handles it. We can adjust the grid template if needed. */
 }
 #advanced-audio-settings #insert-file-button {
     /* Uses button-secondary style */
@@ -627,13 +648,28 @@ body.settings-visible .rate-pitch-controls {
 
 @media (max-width: 992px) {
     .language-row {
-        gap: var(--space-sm); /* Reduce gap */
+        grid-template-columns: 1fr; /* Stack all columns */
+        gap: var(--space-md); /* Increase gap between stacked sections */
     }
-    .language-row-label {
-        flex-basis: 100px; /* Slightly smaller label */
+
+    .language-and-voice-container {
+        /* Revert to flex for stacking */
+        display: flex;
+        flex-direction: column;
+        align-items: stretch;
+        gap: var(--space-sm);
     }
+    
+    .language-and-voice-container .language-row-label:first-child {
+        width: auto; /* Reset fixed width */
+    }
+
+    .language-and-voice-container select {
+        width: 100%; /* Make selects full width */
+    }
+
     .voice-controls {
-        flex-basis: 180px; /* Slightly smaller voice controls */
+        width: 100%; /* Make slider section full width */
     }
 }
 
@@ -654,25 +690,15 @@ body.settings-visible .rate-pitch-controls {
     }
 
     .language-row {
-        flex-direction: column; /* Stack elements vertically */
-        align-items: stretch; /* Make elements full width */
+        /* Already stacked from 992px query */
         padding: var(--space-md);
     }
+
     .language-row-label {
-        flex-basis: auto; /* Auto width */
-        padding-top: 0;
-        margin-bottom: var(--space-xs); /* Smaller margin */
+        /* No change needed, already handled */
     }
-    .language-row select {
-        flex-basis: auto;
-        width: 100%; /* Full width */
-    }
-    .voice-controls {
-        flex-basis: auto;
-        width: 100%;
-    }
+
     .language-row-actions {
-        margin-left: 0; /* Reset margin */
         justify-content: flex-end; /* Align buttons right */
         padding-top: var(--space-sm);
         width: 100%;
