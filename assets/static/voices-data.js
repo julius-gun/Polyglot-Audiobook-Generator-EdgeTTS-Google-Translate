@@ -20,11 +20,6 @@ const voicesData = [
         "attributes": "General, Friendly, Positive"
     },
     {
-        "value": "ru-RU, DmitryNeural",
-        "gender": "Male",
-        "attributes": "General, Friendly, Positive"
-    },
-    {
         "value": "af-ZA, WillemNeural",
         "gender": "Male",
         "attributes": "General, Friendly, Positive"

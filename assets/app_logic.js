@@ -47,17 +47,32 @@ async function handleGenerateButtonClick() {
 
 
     // --- Get Selected Target Languages and Voices ---
-    const targetVoicesMap = getSelectedTargetLanguagesAndVoices();
-    const targetLanguagesSelectedCount = Object.keys(targetVoicesMap).length;
+    const targets = [];
+    for (let i = 1; i <= 4; i++) {
+        const container = document.getElementById(`tl${i}-container`);
+        if (container && !container.classList.contains('hide')) {
+            const langSelect = document.getElementById(`tl${i}`);
+            const voiceSelect = document.getElementById(`tl${i}-voice`);
+            // Ensure a language and voice are selected before adding
+            if (langSelect && langSelect.value && voiceSelect && voiceSelect.value) {
+                targets.push({
+                    lang: langSelect.value,
+                    voice: voiceSelect.value,
+                    id: `tl${i}` // Store the ID to retrieve rate/pitch settings later
+                });
+            }
+        }
+    }
+    const targetLanguagesSelectedCount = targets.length;
 
 
 
     if (targetLanguagesSelectedCount > 0) {
         console.log("Mode: Multi-Language Audiobook Generation");
         console.log("Source Lang:", sourceLang, "Source Voice:", sourceVoice);
-        console.log("Target Voices Map:", targetVoicesMap);
+        console.log("Targets:", targets);
         // Call the correct function with arguments (defined in audio_multi_language.js)
-        await generateMultiLanguageAudio(sourceLang, sourceVoice, targetVoicesMap); // <-- Corrected call with args
+        await generateMultiLanguageAudio(sourceLang, sourceVoice, targets); // <-- Corrected call with new `targets` array
     } else {
         console.log("Mode: Single Language Audiobook Generation");
         // generateSingleLanguageAudiobook is defined in audio_single_language.js
@@ -66,7 +81,3 @@ async function handleGenerateButtonClick() {
         await generateSingleLanguageAudiobook(); // <-- Needs review if it requires args
     }
 }
-
-
-
-

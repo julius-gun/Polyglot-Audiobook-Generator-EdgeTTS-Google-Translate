@@ -158,16 +158,24 @@ async function translateBatch(batch, sourceLang, targetLangs, currentUiLang) {
     try {
       const url = `https://translate.googleapis.com/translate_a/single?client=gtx&sl=${sourceLang}&tl=${targetLang}&dt=t&q=${encodeURIComponent(batchText)}`;
       let response = await fetch(url);
+      if (!response.ok) { // Check if the request was successful
+          throw new Error(`HTTP error! status: ${response.status}`);
+      }
       let data = await response.json();
-      data.splice(data.length - 7, 7);
+      
+      // The main translation is in the first element of the outer array.
+      // It's an array of segments, and each segment is an array where the first element is the translated text.
       let translatedText = data[0].map(item => item[0]).join("");
 
       // Basic length check (you might want more sophisticated checks)
       if (translatedText.length < 0.4 * batchText.length) {
         console.log(`Re-translating batch to ${targetLang} due to length`);
         response = await fetch(url); // Re-fetch
+        if (!response.ok) {
+             throw new Error(`HTTP error on retry! status: ${response.status}`);
+        }
         data = await response.json();
-        data.splice(data.length - 7, 7);
+        // data.splice(data.length - 7, 7);
         translatedText = data[0].map(item => item[0]).join("");
       }
       translationsResult[targetLang] = translatedText.split('\n'); //split back
@@ -175,7 +183,7 @@ async function translateBatch(batch, sourceLang, targetLangs, currentUiLang) {
       console.error('Translation error:', error);
       // Use the passed currentUiLang parameter to get the correct error message
       // Accesses the global 'translations' object defined in ui_translations.js
-      const errorMsg = translations[currentUiLang]?.translationError || translations['en'].translationError; //Fallback to english if currentUiLang is not loaded yet.
+      const errorMsg = fetchTranslation('translationError', currentLanguage);
       translationsResult[targetLang] = batch.map(() => errorMsg);
     }
   }

@@ -21,12 +21,12 @@ let multiLangPipelineManager = null;
 let multiLangBaseFilename = "MultiLangAudiobook"; // Default filename
 
 // Constants for translation batching
-const GOOGLE_TRANSLATE_CHARACTER_LIMIT = 4500; // Character limit per API call
+const GOOGLE_TRANSLATE_CHARACTER_LIMIT = 1500; // REDUCED for safe GET request URL length
 const API_CALL_DELAY_MIN_MS = 200;
 const API_CALL_DELAY_MAX_MS = 500;
 
 
-async function generateMultiLanguageAudio(sourceLang, sourceVoice, targetVoicesMap) {
+async function generateMultiLanguageAudio(sourceLang, sourceVoice, targets) {
     console.log("--- generateMultiLanguageAudio START ---");
     // Reset UI elements specifically for this flow
     document.getElementById('reload-page-button')?.classList.add('hide');
@@ -39,15 +39,15 @@ async function generateMultiLanguageAudio(sourceLang, sourceVoice, targetVoicesM
 
 
     const sourceText = document.getElementById('source-text').value;
-    const targetLangs = Object.keys(targetVoicesMap);
+    const targetLangsInSequence = targets.map(t => t.lang);
 
-    if (targetLangs.length === 0) {
+    if (targetLangsInSequence.length === 0) {
         alert(fetchTranslation('alertSelectTargetLang', currentLanguage));
         return;
     }
 
     // --- 1. Translation Phase (with concurrent display) ---
-    console.log("Phase 1: Translation & Display");
+    console.log("Phase 1: Translation & Immediate Display");
     const progressContainer = document.getElementById('progress-container');
     const progressBar = document.getElementById('progress-bar');
     const progressInfo = document.getElementById('progress-info');
@@ -71,101 +71,108 @@ async function generateMultiLanguageAudio(sourceLang, sourceVoice, targetVoicesM
 
     multiLangSentences = []; // Reset global array
     const totalSentencesToTranslate = originalSentences.length;
-    let translatedSentencesCount = 0; // Tracks how many of the original sentences have been processed
-    let currentOriginalSentenceIndex = 0; // Tracks the current position in originalSentences array
+    let translatedSentencesCount = 0;
     const translationStartTime = Date.now();
     updateProgress(0, totalSentencesToTranslate, translationStartTime); // Initial call for translation progress
 
     console.log(`Source text split into ${originalSentences.length} sentences.`);
 
-    // Create sub-batches from originalSentences
-    // createTranslationBatches is from translation_utils.js
+    // --- Translation Optimization ---
+    // Identify unique target languages that actually need translation (not source, no repeats)
+    const uniqueTargetLangsToTranslate = [...new Set(targetLangsInSequence)].filter(lang => lang !== sourceLang);
+    console.log("Unique languages to translate:", uniqueTargetLangsToTranslate);
+
+    // Create sub-batches from originalSentences for the API calls
     const sentenceSubBatches = createTranslationBatches(originalSentences, GOOGLE_TRANSLATE_CHARACTER_LIMIT);
     console.log(`Created ${sentenceSubBatches.length} sub-batches for translation API calls.`);
 
+    let sentenceCursor = 0; // Keep track of which original sentence we're on
+
     try {
+        if (uniqueTargetLangsToTranslate.length > 0) {
         for (let batchIndex = 0; batchIndex < sentenceSubBatches.length; batchIndex++) {
             const currentSentenceSubBatch = sentenceSubBatches[batchIndex];
             if (currentSentenceSubBatch.length === 0) continue;
 
-            console.log(`Translating sub-batch ${batchIndex + 1}/${sentenceSubBatches.length} (${currentSentenceSubBatch.length} sentences) from ${sourceLang} to ${targetLangs.join(', ')}...`);
+                console.log(`Translating sub-batch ${batchIndex + 1}/${sentenceSubBatches.length} from ${sourceLang} to ${uniqueTargetLangsToTranslate.join(', ')}...`);
 
-        // translateBatch is from translation_api.js
-            // It now processes a smaller sub-batch of sentences
-            const subBatchTranslationResult = await translateBatch(currentSentenceSubBatch, sourceLang, targetLangs, currentLanguage);
+            const subBatchTranslationResult = await translateBatch(currentSentenceSubBatch, sourceLang, uniqueTargetLangsToTranslate, currentLanguage);
 
-            const sentencesInThisSubBatchForDisplay = []; // Temporary store for display
-
-            if (subBatchTranslationResult && subBatchTranslationResult.translations) {
-                for (let i = 0; i < currentSentenceSubBatch.length; i++) {
-                    const originalSentenceText = currentSentenceSubBatch[i];
-                const sentenceData = {
-                        original: originalSentenceText,
-                    translations: {}
-                };
-                    const displayTranslationsDataForSentence = {};
-
-                for (const targetLang of targetLangs) {
-                        if (subBatchTranslationResult.translations[targetLang] && subBatchTranslationResult.translations[targetLang][i]) {
-                            sentenceData.translations[targetLang] = subBatchTranslationResult.translations[targetLang][i];
-                            displayTranslationsDataForSentence[targetLang] = [subBatchTranslationResult.translations[targetLang][i]];
-                        } else {
-                            const errorMsg = fetchTranslation('translationError', currentLanguage);
-                            sentenceData.translations[targetLang] = errorMsg;
-                            displayTranslationsDataForSentence[targetLang] = [errorMsg];
-                            console.warn(`Missing translation for sentence in sub-batch (original index approx. ${currentOriginalSentenceIndex + i}) to lang ${targetLang}`);
-                        }
-                    }
-                    multiLangSentences.push(sentenceData);
-                    
-                    // Prepare for immediate display
-                    // displayTranslatedBatch is from ui.js expects arrays for original and translations
-                    displayTranslatedBatch([originalSentenceText], displayTranslationsDataForSentence, sourceLang, targetLangs);
-                    await sleep(5); // Small delay for UI update after each sentence
-                }
-                translatedSentencesCount += currentSentenceSubBatch.length;
-                updateProgress(translatedSentencesCount, totalSentencesToTranslate, translationStartTime);
-
-                    } else {
-                // Handle error for the sub-batch: fill with error messages and display them
-                console.warn(`Translation result was invalid for sub-batch ${batchIndex + 1}. Filling with error messages.`);
+                // --- Process and display this batch immediately ---
                 for (let i = 0; i < currentSentenceSubBatch.length; i++) {
                     const originalSentenceText = currentSentenceSubBatch[i];
                     const sentenceData = {
                         original: originalSentenceText,
                         translations: {}
                     };
-                    const displayTranslationsDataForSentence = {};
-                    const errorMsg = fetchTranslation('translationError', currentLanguage);
 
-                    for (const targetLang of targetLangs) {
-                        sentenceData.translations[targetLang] = errorMsg;
-                        displayTranslationsDataForSentence[targetLang] = [errorMsg];
+                    // Populate translations for this sentence
+                    for (const lang of uniqueTargetLangsToTranslate) {
+                        if (subBatchTranslationResult.translations && subBatchTranslationResult.translations[lang]) {
+                            sentenceData.translations[lang] = subBatchTranslationResult.translations[lang][i];
+                        } else {
+                            sentenceData.translations[lang] = fetchTranslation('translationError', currentLanguage);
+                        }
+                    }
+
+                    // Handle languages that are the same as source (no translation needed)
+                    for (const lang of targetLangsInSequence) {
+                        if (lang === sourceLang) {
+                            sentenceData.translations[lang] = originalSentenceText;
+                        }
                     }
                     multiLangSentences.push(sentenceData);
-                    displayTranslatedBatch([originalSentenceText], displayTranslationsDataForSentence, sourceLang, targetLangs);
+
+                    // --- IMMEDIATE DISPLAY ---
+                    // Create a display object for just this sentence
+                    const displayTargets = {};
+                    targets.forEach(target => {
+                        const lang = target.lang;
+                        if (!displayTargets[lang]) {
+                            displayTargets[lang] = [];
+                        }
+                        displayTargets[lang].push(sentenceData.translations[lang] || fetchTranslation('translationError', currentLanguage));
+                    });
+
+                    displayTranslatedBatch([originalSentenceText], displayTargets, sourceLang, Object.keys(displayTargets));
                     await sleep(5); // Small delay for UI update
-                }
+                    }
+
+                // Update progress based on the number of original sentences processed in the batch
                 translatedSentencesCount += currentSentenceSubBatch.length;
                 updateProgress(translatedSentencesCount, totalSentencesToTranslate, translationStartTime);
-                // Potentially throw an error here if one sub-batch failure should stop everything
-                // For now, we continue and try to translate other batches.
+
+                if (batchIndex < sentenceSubBatches.length - 1) {
+                    await sleep(API_CALL_DELAY_MIN_MS, API_CALL_DELAY_MAX_MS);
+                }
             }
-
-            currentOriginalSentenceIndex += currentSentenceSubBatch.length; // Update the overall sentence counter
-
-            // Sleep if not the last batch
-            if (batchIndex < sentenceSubBatches.length - 1) {
-                // sleep is from translation_utils.js
-                await sleep(API_CALL_DELAY_MIN_MS, API_CALL_DELAY_MAX_MS);
+        } else {
+            // Handle case where no translation is needed (e.g., source only, or fr -> fr)
+            for (const originalSentenceText of originalSentences) {
+                    const sentenceData = {
+                        original: originalSentenceText,
+                        translations: {}
+                    };
+                // Just copy the source text for all targets
+            for (const lang of targetLangsInSequence) {
+                    sentenceData.translations[lang] = originalSentenceText;
             }
-        }
-        console.log("All sub-batches processed. Total sentences in multiLangSentences:", multiLangSentences.length);
+            multiLangSentences.push(sentenceData);
 
-        if (multiLangSentences.length !== totalSentencesToTranslate) {
-            console.warn(`Mismatch in sentence count. Expected ${totalSentencesToTranslate}, got ${multiLangSentences.length}. This might indicate an issue in batch processing or result aggregation.`);
-            // Potentially throw an error or alert the user
+            // Display this sentence immediately. Create a temporary display object for target languages
+            // to conform to displayTranslatedBatch's expected format.
+             const displayTargets = {};
+             targets.forEach(target => {
+                    displayTargets[target.lang] = [originalSentenceText];
+             });
+
+            displayTranslatedBatch([originalSentenceText], displayTargets, sourceLang, Object.keys(displayTargets));
+                await sleep(5);
+            }
+            updateProgress(totalSentencesToTranslate, totalSentencesToTranslate, translationStartTime);
         }
+
+        console.log("All sentences translated and displayed. Total in multiLangSentences:", multiLangSentences.length);
 
     } catch (error) {
         console.error("Error during batched translation process:", error);
@@ -176,21 +183,7 @@ async function generateMultiLanguageAudio(sourceLang, sourceVoice, targetVoicesM
         return;
     }
     
-    // The old "Phase 2: Display Translated Sentences" is now integrated above.
-    // console.log("Phase 2: Displaying Translations"); // No longer a separate phase
-    // const bookContainer = document.getElementById('output'); // Already defined
-    // bookContainer.innerHTML = ''; // Already cleared at the start
-
-    // for (const sentenceData of multiLangSentences) { // This loop is removed
-    //     const displayBatch = [sentenceData.original];
-    //     const displayTranslationsData = {};
-    //     for (const lang of targetLangs) {
-    //         displayTranslationsData[lang] = [sentenceData.translations[lang] || fetchTranslation('translationError', currentLanguage)];
-    //     }
-    //     displayTranslatedBatch(displayBatch, displayTranslationsData, sourceLang, targetLangs);
-    //     await sleep(5); 
-    // }
-
+    // --- Translation UI Finalization ---
     document.getElementById('translation-finished-message')?.classList.remove('hide');
     if (progressBar) {
         progressBar.style.width = '100%';
@@ -211,74 +204,82 @@ async function generateMultiLanguageAudio(sourceLang, sourceVoice, targetVoicesM
     // --- 3. Audio Generation Phase ---
     console.log("Phase 3: Audio Generation Setup");
 
-    // Get audio settings (rate/pitch) for all languages involved
-    const audioSettingsForTasks = {}; // Renamed to avoid confusion with pipeline's own audioSettings
-    audioSettingsForTasks[sourceLang] = {
+    // 3.1 Get Audio Settings
+    const sourceSettings = {
         rate: `${document.getElementById('sl-rate')?.value || 0}%`,
         pitch: `${document.getElementById('sl-pitch')?.value || 0}Hz`,
-        volume: "+0%"
+        volume: "+0%",
+        voice: sourceVoice
     };
-    for (let i = 1; i <= 4; i++) {
-        const langSelect = document.getElementById(`tl${i}`);
-        const rateSlider = document.getElementById(`tl${i}-rate`);
-        const pitchSlider = document.getElementById(`tl${i}-pitch`);
-        if (langSelect && langSelect.value && rateSlider && pitchSlider) {
-            const lang = langSelect.value;
-            if (targetVoicesMap[lang]) {
-                 audioSettingsForTasks[lang] = { // Use new name here
-                    rate: `${rateSlider.value || 0}%`,
-                    pitch: `${pitchSlider.value || 0}Hz`,
-                    volume: "+0%"
+
+    const targetSettings = {};
+    targets.forEach(target => {
+        const rateSlider = document.getElementById(`${target.id}-rate`);
+        const pitchSlider = document.getElementById(`${target.id}-pitch`);
+        targetSettings[target.id] = {
+            rate: `${rateSlider?.value || 0}%`,
+            pitch: `${pitchSlider?.value || 0}Hz`,
+            volume: "+0%",
+            voice: target.voice,
+            lang: target.lang
                 };
-            }
-        }
-    }
-    console.log("Audio Settings for Tasks:", audioSettingsForTasks);
+    });
+    console.log("Audio Settings For All Slots:", { source: sourceSettings, targets: targetSettings });
 
-    // 3.1 Prepare list of audio tasks
-    const allAudioTasks = [];
-    let finalIndexCounter = 0;
+    // 3.2 Prepare a list of UNIQUE audio generation jobs
+    const uniqueAudioJobs = new Map();
+    const audioSequenceForAssembly = []; // Will store the keys in playback order for each sentence
 
-    for (let sentenceIndex = 0; sentenceIndex < multiLangSentences.length; sentenceIndex++) {
-        const sentenceData = multiLangSentences[sentenceIndex];
+    for (const sentenceData of multiLangSentences) {
+        const sentenceAudioSequence = []; // Keys for this sentence in order
 
-        // Task for original sentence
+        // Job for the original (source) sentence
         if (sentenceData.original && sentenceData.original.trim().length > 0) {
-            allAudioTasks.push({
-                text: sentenceData.original,
-                voice: sourceVoice,
-                rate: audioSettingsForTasks[sourceLang].rate, // Use new name
-                pitch: audioSettingsForTasks[sourceLang].pitch, // Use new name
-                volume: audioSettingsForTasks[sourceLang].volume, // Use new name
+            const text = sentenceData.original;
+            // Key includes text, voice, and prosody for true uniqueness
+            const key = `${sourceLang}|${text}|${sourceSettings.voice}|${sourceSettings.rate}|${sourceSettings.pitch}`;
+
+            if (!uniqueAudioJobs.has(key)) {
+                uniqueAudioJobs.set(key, {
+                    key: key, // Store key for mapping results
+                    text: text,
+                    voice: sourceSettings.voice,
+                    rate: sourceSettings.rate,
+                    pitch: sourceSettings.pitch,
+                    volume: sourceSettings.volume,
                 lang: sourceLang,
-                type: 'source',
-                sentenceIndex: sentenceIndex,
-                finalIndex: finalIndexCounter++
             });
-        } else {
-             console.warn(`Skipping empty original sentence at index ${sentenceIndex}`);
+            }
+            sentenceAudioSequence.push(key);
         }
 
-        // Tasks for translated sentences
-        for (const targetLang of targetLangs) {
-            const translationText = sentenceData.translations[targetLang];
+        // Jobs for translated sentences, in the specified sequence
+        for (const target of targets) {
+            // `target` is { lang: 'en', voice: '...', id: 'tl1' }
+            const translationText = sentenceData.translations[target.lang];
+            const settings = targetSettings[target.id]; // Get settings for this specific slot (tl1, tl2, etc.)
+
             if (translationText && translationText.trim().length > 0 && translationText !== fetchTranslation('translationError', currentLanguage)) {
-                 allAudioTasks.push({
+                const key = `${target.lang}|${translationText}|${settings.voice}|${settings.rate}|${settings.pitch}`;
+
+                if (!uniqueAudioJobs.has(key)) {
+                    uniqueAudioJobs.set(key, {
+                        key: key,
                     text: translationText,
-                    voice: targetVoicesMap[targetLang],
-                    rate: audioSettingsForTasks[targetLang].rate, // Use new name
-                    pitch: audioSettingsForTasks[targetLang].pitch, // Use new name
-                    volume: audioSettingsForTasks[targetLang].volume, // Use new name
-                    lang: targetLang,
-                    type: 'target',
-                    sentenceIndex: sentenceIndex,
-                    finalIndex: finalIndexCounter++
-                });
-            } else {
-                 console.warn(`Skipping empty or error translation for lang ${targetLang} at sentence index ${sentenceIndex}`);
+                        voice: settings.voice,
+                        rate: settings.rate,
+                        pitch: settings.pitch,
+                        volume: settings.volume,
+                        lang: target.lang,
+                    });
+                }
+                sentenceAudioSequence.push(key);
             }
         }
+        audioSequenceForAssembly.push(sentenceAudioSequence);
     }
+
+    const allAudioTasks = Array.from(uniqueAudioJobs.values());
 
     if (allAudioTasks.length === 0) {
         console.error("No valid audio tasks could be created.");
@@ -286,9 +287,10 @@ async function generateMultiLanguageAudio(sourceLang, sourceVoice, targetVoicesM
         document.getElementById('reload-page-button')?.classList.remove('hide');
         return;
     }
-    console.log(`Created ${allAudioTasks.length} audio tasks for generation.`);
+    console.log(`Created ${allAudioTasks.length} unique audio tasks for generation.`);
+    console.log("Audio sequence for assembly has been mapped for all sentences.");
 
-    // 3.2 Reset UI for Audio Phase
+    // 3.3 Reset UI for Audio Phase & Configure Pipeline
     const statArea = document.getElementById('stat-area');
     // Progress bar elements are already defined (progressContainer, progressBar, progressInfo)
     // We will re-purpose them.
@@ -321,24 +323,16 @@ async function generateMultiLanguageAudio(sourceLang, sourceVoice, targetVoicesM
     multiLangBaseFilename = sanitizedFirstWords.substring(0, 30) || "MultiLangAudiobook";
     console.log("Determined base filename for audio:", multiLangBaseFilename);
 
-
-    // 3.3 Configure AudioPipelineManager
+    // 3.3 Configure and Start AudioPipelineManager
     const maxThreads = parseInt(document.querySelector('.max-threads')?.value || '10', 10);
     const pipelineConfig = {
         tasks: allAudioTasks,
-        audioSettings: { // ADD THIS
-            voice: sourceVoice, // Provide a placeholder/default voice
-            // Rate and pitch are not strictly necessary here as tasks override them,
-            // but can be included for completeness or if the manager might use them.
-            // For now, just the voice is needed to pass the constructor check.
-            // rate: "+0%",
-            // pitch: "+0Hz",
-        },
+        audioSettings: { voice: sourceVoice }, // Restored: Provide a default/fallback voice to satisfy the constructor check.
         concurrencyLimit: maxThreads,
         baseFilename: multiLangBaseFilename,
         statArea: statArea,
         onProgress: handleMultiLangAudioProgress,
-        onComplete: handleMultiLangAudioComplete,
+        onComplete: (completionData) => handleMultiLangAudioComplete(completionData, audioSequenceForAssembly),
         onError: handleMultiLangAudioError
     };
 
@@ -376,10 +370,9 @@ function handleMultiLangAudioProgress(progressData) {
 
     if (progressInfo) {
         const calculatingText = fetchTranslation('statusCalculating', currentLanguage);
-        const etaString = (etaSeconds === null || !isFinite(etaSeconds))
-            ? calculatingText
-            : formatTime(etaSeconds * 1000);
-
+        const etaString = (etaSeconds === null || !isFinite(etaSeconds)) ?
+            calculatingText :
+            formatTime(etaSeconds * 1000);
         const processedText = fetchTranslation('statusProcessed', currentLanguage);
         const failedText = fetchTranslation('statusFailedLabel', currentLanguage);
         const etaText = fetchTranslation('eta', currentLanguage);
@@ -392,7 +385,7 @@ function handleMultiLangAudioProgress(progressData) {
     }
 }
 
-async function handleMultiLangAudioComplete(completionData) {
+async function handleMultiLangAudioComplete(completionData, audioSequenceForAssembly) {
     const { processed, failed, total, results } = completionData;
     console.log(`Multi-Language Pipeline finished. Success: ${processed}, Failed: ${failed}, Total: ${total}`);
 
@@ -457,29 +450,39 @@ async function handleMultiLangAudioComplete(completionData) {
     }
 
     try {
-        console.log("Filtering and sorting successful results for final audio...");
-        const successfulResults = results.filter(instance =>
-            instance && instance.mp3_saved && instance.my_uint8Array && instance.my_uint8Array.length > 0 && typeof instance.finalIndex === 'number'
-        );
-        successfulResults.sort((a, b) => a.finalIndex - b.finalIndex);
-
-        if (successfulResults.length !== processed) {
-             console.warn(`Mismatch between processed count (${processed}) and filterable/sortable results (${successfulResults.length}).`);
+        console.log("Building audio cache from successful results...");
+        const audioCache = new Map();
+        for (const instance of results) {
+            if (instance && instance.mp3_saved && instance.my_uint8Array?.length > 0 && instance.originalTask) {
+                // The key was stored on the originalTask object.
+                audioCache.set(instance.originalTask.key, instance.my_uint8Array);
+            }
         }
+        console.log(`Audio cache built with ${audioCache.size} entries.`);
 
-        if (successfulResults.length > 0) {
-            console.log(`Concatenating ${successfulResults.length} audio parts...`);
-            const audioDataArrays = successfulResults.map(instance => instance.my_uint8Array);
+        if (audioCache.size > 0) {
+            console.log("Assembling final audio file from cache using predefined sequence...");
+            const finalAudioParts = [];
+            for (const sentenceSequence of audioSequenceForAssembly) {
+                for (const key of sentenceSequence) {
+                    if (audioCache.has(key)) {
+                        finalAudioParts.push(audioCache.get(key));
+                    } else {
+                        console.warn(`Audio part not found in cache for key: ${key}`);
+                    }
+                }
+            }
 
-            // concatenateUint8Arrays is from audio_helpers.js
-            const combinedAudioData = concatenateUint8Arrays(audioDataArrays);
+            console.log(`Concatenating ${finalAudioParts.length} audio parts...`);
+            const combinedAudioData = concatenateUint8Arrays(finalAudioParts);
             const finalFilename = `${multiLangBaseFilename}.mp3`;
             console.log(`Saving combined audio as ${finalFilename}`);
             const audioBlob = new Blob([combinedAudioData.buffer], { type: 'audio/mpeg' });
             saveAs(audioBlob, finalFilename); // FileSaver.js
 
             if (statArea) {
-                statArea.value += `\n--- ${fetchTranslation('statusCombinedAudioSaved', currentLanguage, finalFilename)} ---`; // KEY
+                const message = formatString(fetchTranslation('statusCombinedAudioSaved', currentLanguage), finalFilename);
+                statArea.value += `\n--- ${message} ---`;
                 statArea.scrollTop = statArea.scrollHeight;
             }
         } else {
@@ -491,7 +494,8 @@ async function handleMultiLangAudioComplete(completionData) {
     } catch (error) {
         console.error("Error during final audio merging or saving:", error);
         if (statArea) {
-            statArea.value += `\n--- ${fetchTranslation('alertMergeSaveError', currentLanguage, error.message)} ---`; // KEY
+            const message = formatString(fetchTranslation('alertMergeSaveError', currentLanguage), error.message);
+            statArea.value += `\n--- ${message} ---`;
             statArea.scrollTop = statArea.scrollHeight;
         }
         if (progressBar) progressBar.style.backgroundColor = '#dc3545';
@@ -511,7 +515,7 @@ function handleMultiLangAudioError(errorMessage) {
     const progressBar = document.getElementById('progress-bar');
     const reloadButton = document.getElementById('reload-page-button');
 
-    const errorText = `\n--- ${fetchTranslation('pipelineErrorMessage', currentLanguage, errorMessage)} ---`;
+    const errorText = `\n--- ${formatString(fetchTranslation('pipelineErrorMessage', currentLanguage), errorMessage)} ---`;
 
     if (statArea) {
         statArea.classList.remove('hide');
@@ -543,7 +547,7 @@ if (typeof translations !== 'undefined' && translations.en) {
     translations.en.translationProgressTitle = "Translation Progress";
     translations.en.alertTranslationFailed = "The translation process failed. Please check the log and try again.";
     translations.en.alertNoAudioTasks = "No audio tasks could be created. This might be due to empty text or translation errors.";
-    translations.en.statusMergingAudio = "Merging final audio file...";
+    translations.en.statusMergingAudio = "Assembling and saving final audio file...";
     translations.en.statusCombinedAudioSaved = "Combined audio saved as {0}";
     translations.en.alertNoAudioPartsToMerge = "Error: No successful audio parts found to merge.";
     translations.en.statusMergeError = "Merge Error!";

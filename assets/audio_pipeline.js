@@ -178,7 +178,6 @@ class AudioPipelineManager {
         const taskRate = taskData.rate || this.audioSettings.rate;
         const taskPitch = taskData.pitch || this.audioSettings.pitch;
         const taskVolume = taskData.volume || this.audioSettings.volume;
-        const taskFinalIndex = taskData.finalIndex ?? index; // Use provided finalIndex or default to sequence index
 
         if (!taskVoice) {
              console.error(`Pipeline: Task ${index + 1} has no voice defined (neither in task nor manager defaults). Skipping.`);
@@ -191,7 +190,7 @@ class AudioPipelineManager {
         // --- End Task-Specific Settings ---
 
 
-        console.log(`Pipeline: Queueing task ${index + 1}/${this.totalTasks} (Final Index: ${taskFinalIndex})`);
+        console.log(`Pipeline: Queueing task ${index + 1}/${this.totalTasks}`);
         this._updateTaskStatus(index, "statusQueued"); // Update status immediately using key
 
         // Increment *before* async operation
@@ -202,7 +201,6 @@ class AudioPipelineManager {
 
         const taskConfig = {
             index: index, // The sequential index in the manager's task array
-            finalIndex: taskFinalIndex, // The intended final order index (for multi-lang)
             text: text,
             voice: formattedVoice,
             rate: taskRate,
@@ -222,6 +220,9 @@ class AudioPipelineManager {
                 // Completion Callback Wrapper (bound to this instance)
                 this._handleTaskCompletion.bind(this)
             );
+
+            // Attach the original task object to the instance for later identification
+            ttsInstance.originalTask = taskData;
 
             // Store the instance
             this.taskInstances[index] = ttsInstance;
@@ -272,11 +273,8 @@ class AudioPipelineManager {
             // We can rely on that or force an update here. Let's rely on instance for now.
             // this._updateTaskStatus(completedIndex, "Success");
         }
-        // Store the finalIndex from the instance if available (it should have been passed down)
-        // This is crucial for sorting later in the multi-language completion handler
-        if (instance) {
-            instance.finalIndex = instance.finalIndex ?? completedIndex; // Ensure finalIndex is set
-        }
+        // The originalTask was attached to the instance when it was created,
+        // so it will be available in the results array for the onComplete handler.
 
         // --- Reporting ---
         if (this.onProgress) {
