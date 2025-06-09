@@ -86,9 +86,9 @@ const translations = {
         alertGenericFileError: 'An error occurred while processing the files. Check the console for details.',
         // UI Labels, Placeholders, Titles, etc.
         advancedAudioSettingsTitle: 'Advanced Audio Settings',
-        labelThreads: 'Threads:',
-        labelMergeBy: 'Merge by:',
-        labelRate: 'Rate:',
+        labelThreads: 'Anzahl der Instanzen:',
+        labelMergeBy: 'Merge MP3 files by:',
+        labelRate: 'Speed:',
         labelPitch: 'Pitch:',
         textAll: 'ALL', // For merge slider
         textPieces: 'pcs.', // For merge slider suffix
