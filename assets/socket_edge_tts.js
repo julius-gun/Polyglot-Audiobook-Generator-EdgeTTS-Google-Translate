@@ -1,4 +1,29 @@
-﻿class SocketEdgeTTS {
+﻿const EdgeTTS_DRM = {
+    WIN_EPOCH: 11644473600,
+    S_TO_NS: 1e9,
+    clockSkewSeconds: 0.0,
+    
+    getUnixTimestamp: function() {
+        return Date.now() / 1000 + this.clockSkewSeconds;
+    },
+    
+    generateSecMsGec: async function(trustedClientToken) {
+        let ticks = this.getUnixTimestamp();
+        ticks += this.WIN_EPOCH;
+        ticks -= ticks % 300;
+        ticks *= this.S_TO_NS / 100;
+
+        const strToHash = `${ticks.toFixed(0)}${trustedClientToken}`;
+
+        const encoder = new TextEncoder();
+        const data = encoder.encode(strToHash);
+        const hashBuffer = await crypto.subtle.digest('SHA-256', data);
+        const hashArray = Array.from(new Uint8Array(hashBuffer));
+        return hashArray.map(b => b.toString(16).padStart(2, '0')).join('').toUpperCase();
+    }
+};
+
+class SocketEdgeTTS {
 	constructor(_indexpart, _filename, _filenum,
 		_voice, _pitch, _rate, _volume, _text,
 		_statArea, /* REMOVED _obj_threads_info */ _save_to_var,
@@ -26,6 +51,7 @@
 		this.start_save = false // Flag used by audio_single_language.js to track merge/save status
 		this.onCompleteOrErrorCallback = _onCompleteOrErrorCallback; // Store the callback
 		this.callbackCalled = false; // Ensure callback is called only once
+        this.TRUSTED_CLIENT_TOKEN = "6A5AA1D4EAFF4E9FB37E23D68491D6F4";
 
 		// --- Retry Logic ---
 		this.maxRetries = _retrySettings.maxRetries;
@@ -284,7 +310,7 @@
 		// Resources are cleaned up via _triggerCallback -> caller -> clearOldRun/part.clear()
 	}
 
-	start_works() {
+	async start_works() {
 		// Reset state variables relevant for a new attempt (needed for retries)
 		this.my_uint8Array = new Uint8Array(0);
 		this.audios = [];
@@ -314,12 +340,17 @@
 				}
 				this.socket = null; // Ensure socket is nullified before creating a new one
 
-				this.socket = new WebSocket(
-					"wss://speech.platform.bing.com/consumer/speech/synthesize/" +
-					"readaloud/edge/v1?TrustedClientToken=" +
-					"6A5AA1D4EAFF4E9FB37E23D68491D6F4" + // <<< STILL THE LIKELY PROBLEM POINT
-					"&ConnectionId=" + this.connect_id()
-				);
+                const secMsGec = await EdgeTTS_DRM.generateSecMsGec(this.TRUSTED_CLIENT_TOKEN);
+                const CHROMIUM_FULL_VERSION = "130.0.2849.68";
+                const SEC_MS_GEC_VERSION = `1-${CHROMIUM_FULL_VERSION}`;
+                
+                const url = "wss://speech.platform.bing.com/consumer/speech/synthesize/readaloud/edge/v1?TrustedClientToken=" +
+                    this.TRUSTED_CLIENT_TOKEN +
+                    "&ConnectionId=" + this.connect_id() +
+                    `&Sec-MS-GEC=${secMsGec}` +
+                    `&Sec-MS-GEC-Version=${SEC_MS_GEC_VERSION}`;
+
+				this.socket = new WebSocket(url);
 				this.socket.binaryType = 'blob'; // Ensure we receive blobs
 				// Bind event listeners correctly
 				this.socket.addEventListener('open', this.onSocketOpen.bind(this));
