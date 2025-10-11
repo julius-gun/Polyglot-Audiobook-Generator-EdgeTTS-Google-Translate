@@ -19,6 +19,10 @@ let multiLangSentences = []; // Array to hold { original: "...", translations: {
 // Store the pipeline manager instance globally within this module
 let multiLangPipelineManager = null;
 let multiLangBaseFilename = "MultiLangAudiobook"; // Default filename
+let failedMultiLanguageTasks = []; // Store failed tasks for retry
+let currentAudioSequenceForAssembly = []; // Store the audio sequence map for retries
+let multiLangAudioCache = new Map(); // Cache for successful audio parts across runs
+
 
 // Constants for translation batching
 const GOOGLE_TRANSLATE_CHARACTER_LIMIT = 1500; // REDUCED for safe GET request URL length
@@ -30,12 +34,18 @@ async function generateMultiLanguageAudio(sourceLang, sourceVoice, targets) {
     console.log("--- generateMultiLanguageAudio START ---");
     // Reset UI elements specifically for this flow
     document.getElementById('reload-page-button')?.classList.add('hide');
+    document.getElementById('retry-failed-button')?.remove(); // Remove old retry button
     const bookContainer = document.getElementById('output'); // Get bookContainer early
     bookContainer.innerHTML = ''; // Clear previous output
     document.getElementById('stat-area')?.classList.add('hide');
     document.getElementById('translation-finished-message')?.classList.add('hide');
     document.getElementById('open-book-view-button')?.classList.add('hide');
     document.getElementById('save-epub-button')?.classList.add('hide');
+
+    // Reset state for a new run
+    failedMultiLanguageTasks = [];
+    currentAudioSequenceForAssembly = [];
+    multiLangAudioCache.clear();
 
 
     const sourceText = document.getElementById('source-text').value;
@@ -278,6 +288,9 @@ async function generateMultiLanguageAudio(sourceLang, sourceVoice, targets) {
         }
         audioSequenceForAssembly.push(sentenceAudioSequence);
     }
+    // Store the sequence map for potential retries
+    currentAudioSequenceForAssembly = audioSequenceForAssembly;
+
 
     const allAudioTasks = Array.from(uniqueAudioJobs.values());
 
@@ -332,7 +345,7 @@ async function generateMultiLanguageAudio(sourceLang, sourceVoice, targets) {
         baseFilename: multiLangBaseFilename,
         statArea: statArea,
         onProgress: handleMultiLangAudioProgress,
-        onComplete: (completionData) => handleMultiLangAudioComplete(completionData, audioSequenceForAssembly),
+        onComplete: (completionData) => handleMultiLangAudioComplete(completionData, currentAudioSequenceForAssembly),
         onError: handleMultiLangAudioError
     };
 
@@ -377,8 +390,11 @@ function handleMultiLangAudioProgress(progressData) {
         const failedText = fetchTranslation('statusFailedLabel', currentLanguage);
         const etaText = fetchTranslation('eta', currentLanguage);
 
+        const totalSuccess = multiLangAudioCache.size + processed;
+        const totalTasksInJob = totalSuccess + failed;
+
         progressInfo.innerHTML = `
-            <span>${processedText}: ${processed} / ${total}</span> |
+            <span>${processedText}: ${totalSuccess} / ${totalTasksInJob}</span> |
             ${failed > 0 ? `<span style="color: red;">${failedText} ${failed}</span> |` : ''}
             <span>${etaText}: ${etaString}</span>
         `;
@@ -387,31 +403,37 @@ function handleMultiLangAudioProgress(progressData) {
 
 async function handleMultiLangAudioComplete(completionData, audioSequenceForAssembly) {
     const { processed, failed, total, results } = completionData;
-    console.log(`Multi-Language Pipeline finished. Success: ${processed}, Failed: ${failed}, Total: ${total}`);
+    console.log(`Multi-Language Pipeline run finished. Success: ${processed}, Failed: ${failed}`);
 
     const statArea = document.getElementById('stat-area');
     const progressInfo = document.getElementById('progress-info');
     const progressBar = document.getElementById('progress-bar');
     const reloadButton = document.getElementById('reload-page-button');
+    reloadButton?.classList.remove('hide');
 
-    if (failed > 0 || processed === 0) {
-        const errorMsgTemplate = fetchTranslation('alertAudioGenerationFailed', currentLanguage);
-        const errorMsg = formatString(errorMsgTemplate, failed);
-        console.error(errorMsg);
+    // Add successful results from this run to the master cache
+    for (const instance of results) {
+        if (instance && instance.mp3_saved && instance.my_uint8Array?.length > 0 && instance.originalTask?.key) {
+            multiLangAudioCache.set(instance.originalTask.key, instance.my_uint8Array);
+        }
+    }
+    console.log(`Audio cache now contains ${multiLangAudioCache.size} entries.`);
+
+    if (failed > 0) {
+        const totalSuccess = multiLangAudioCache.size;
+        const totalTasksInJob = totalSuccess + failed;
 
         let finalMessage = `\n--- ${fetchTranslation('audioGenFailedMessage', currentLanguage)} ---`;
         const detailsTemplate = fetchTranslation('audioGenFailedDetails', currentLanguage);
         finalMessage += `\n${formatString(detailsTemplate, failed)}`;
-        finalMessage += `\n${fetchTranslation('audioGenFailedNoOutput', currentLanguage)}`;
-        finalMessage += "\n---";
-
         if (statArea) statArea.value += finalMessage;
+
         if (progressInfo) {
             const processedText = fetchTranslation('statusProcessed', currentLanguage);
             const failedText = fetchTranslation('statusFailedLabel', currentLanguage);
             const failedExclaimText = fetchTranslation('statusFailedExclaim', currentLanguage);
             progressInfo.innerHTML = `
-                <span>${processedText}: ${processed} / ${total}</span> |
+                <span>${processedText}: ${totalSuccess} / ${totalTasksInJob}</span> |
                 <span style="color: red;">${failedText} ${failed}</span> |
                 <span style="color: red;">${failedExclaimText}</span>
             `;
@@ -419,27 +441,37 @@ async function handleMultiLangAudioComplete(completionData, audioSequenceForAsse
         if (progressBar) {
             const failedProgressTemplate = fetchTranslation('statusFailedProgress', currentLanguage);
             progressBar.style.backgroundColor = '#dc3545';
-            progressBar.textContent = formatString(failedProgressTemplate, failed, total);
+            progressBar.textContent = formatString(failedProgressTemplate, failed, totalTasksInJob);
         }
 
-        console.log("Cleaning up task instances due to failure...");
-        cleanupTaskInstances(results);
+        // Store failed tasks for retry and show the button
+        failedMultiLanguageTasks = results
+            .filter(instance => !instance || !instance.mp3_saved)
+            .map(instance => instance.originalTask);
+
+        if (failedMultiLanguageTasks.length > 0) {
+            createAndShowRetryButton('multi-language');
+        }
+
+        // Clean up only failed instances from this run
+        cleanupTaskInstances(results.filter(instance => !instance || !instance.mp3_saved));
         multiLangPipelineManager = null;
-        reloadButton?.classList.remove('hide');
         return;
     }
 
+    // --- Handle Complete Success ---
+    const totalSuccess = multiLangAudioCache.size;
     let finalMessage = `\n--- ${fetchTranslation('audioGenSuccessMessage', currentLanguage)} ---`;
     const successDetailsTemplate = fetchTranslation('audioGenSuccessDetails', currentLanguage);
-    finalMessage += `\n${formatString(successDetailsTemplate, processed, total)}`;
-    finalMessage += `\n--- ${fetchTranslation('statusMergingAudio', currentLanguage)} ---`; // Add merging message KEY
-
+    finalMessage += `\n${formatString(successDetailsTemplate, totalSuccess, totalSuccess)}`;
+    finalMessage += `\n--- ${fetchTranslation('statusMergingAudio', currentLanguage)} ---`;
     if (statArea) statArea.value += finalMessage;
+
     if (progressInfo) {
         const processedText = fetchTranslation('statusProcessed', currentLanguage);
         const finishedExclaimText = fetchTranslation('statusFinishedExclaim', currentLanguage);
         progressInfo.innerHTML = `
-            <span>${processedText}: ${processed} / ${total}</span> |
+            <span>${processedText}: ${totalSuccess} / ${totalSuccess}</span> |
             <span>${finishedExclaimText}</span>
         `;
     }
@@ -450,23 +482,13 @@ async function handleMultiLangAudioComplete(completionData, audioSequenceForAsse
     }
 
     try {
-        console.log("Building audio cache from successful results...");
-        const audioCache = new Map();
-        for (const instance of results) {
-            if (instance && instance.mp3_saved && instance.my_uint8Array?.length > 0 && instance.originalTask) {
-                // The key was stored on the originalTask object.
-                audioCache.set(instance.originalTask.key, instance.my_uint8Array);
-            }
-        }
-        console.log(`Audio cache built with ${audioCache.size} entries.`);
-
-        if (audioCache.size > 0) {
-            console.log("Assembling final audio file from cache using predefined sequence...");
+        if (multiLangAudioCache.size > 0) {
+            console.log("Assembling final audio file from cache...");
             const finalAudioParts = [];
             for (const sentenceSequence of audioSequenceForAssembly) {
                 for (const key of sentenceSequence) {
-                    if (audioCache.has(key)) {
-                        finalAudioParts.push(audioCache.get(key));
+                    if (multiLangAudioCache.has(key)) {
+                        finalAudioParts.push(multiLangAudioCache.get(key));
                     } else {
                         console.warn(`Audio part not found in cache for key: ${key}`);
                     }
@@ -478,7 +500,7 @@ async function handleMultiLangAudioComplete(completionData, audioSequenceForAsse
             const finalFilename = `${multiLangBaseFilename}.mp3`;
             console.log(`Saving combined audio as ${finalFilename}`);
             const audioBlob = new Blob([combinedAudioData.buffer], { type: 'audio/mpeg' });
-            saveAs(audioBlob, finalFilename); // FileSaver.js
+            saveAs(audioBlob, finalFilename);
 
             if (statArea) {
                 const message = formatString(fetchTranslation('statusCombinedAudioSaved', currentLanguage), finalFilename);
@@ -487,26 +509,22 @@ async function handleMultiLangAudioComplete(completionData, audioSequenceForAsse
             }
         } else {
             console.error("No successful audio parts found to merge.");
-             if (statArea) statArea.value += `\n--- ${fetchTranslation('alertNoAudioPartsToMerge', currentLanguage)} ---`; // KEY
-             if (progressBar) progressBar.style.backgroundColor = '#dc3545';
-             if (progressInfo) progressInfo.innerHTML += ` | <span style="color: red;">${fetchTranslation('statusMergeError', currentLanguage)}</span>`; // KEY
+            if (statArea) statArea.value += `\n--- ${fetchTranslation('alertNoAudioPartsToMerge', currentLanguage)} ---`;
         }
     } catch (error) {
         console.error("Error during final audio merging or saving:", error);
         if (statArea) {
             const message = formatString(fetchTranslation('alertMergeSaveError', currentLanguage), error.message);
             statArea.value += `\n--- ${message} ---`;
-            statArea.scrollTop = statArea.scrollHeight;
         }
-        if (progressBar) progressBar.style.backgroundColor = '#dc3545';
-        if (progressInfo) progressInfo.innerHTML += ` | <span style="color: red;">${fetchTranslation('statusSaveError', currentLanguage)}</span>`; // KEY
     } finally {
-        console.log("Cleaning up task instances after completion attempt...");
-        cleanupTaskInstances(results);
+        console.log("Cleaning up all task instances after successful completion...");
+        cleanupTaskInstances(results); // Clean up instances from the final successful run
+        multiLangAudioCache.clear(); // Clear the cache
         multiLangPipelineManager = null;
-        reloadButton?.classList.remove('hide');
     }
 }
+
 
 function handleMultiLangAudioError(errorMessage) {
     console.error("Multi-Language Audio Pipeline Error:", errorMessage);
@@ -514,6 +532,8 @@ function handleMultiLangAudioError(errorMessage) {
     const progressInfo = document.getElementById('progress-info');
     const progressBar = document.getElementById('progress-bar');
     const reloadButton = document.getElementById('reload-page-button');
+    reloadButton?.classList.remove('hide');
+
 
     const errorText = `\n--- ${formatString(fetchTranslation('pipelineErrorMessage', currentLanguage), errorMessage)} ---`;
 
@@ -536,8 +556,103 @@ function handleMultiLangAudioError(errorMessage) {
         multiLangPipelineManager.clear();
         multiLangPipelineManager = null;
     }
-    reloadButton?.classList.remove('hide');
 }
+
+// --- Retry Logic ---
+
+/**
+ * Creates and displays the 'Retry Failed' button.
+ * @param {string} mode - 'single-language' or 'multi-language' to link to the correct retry function.
+ */
+function createAndShowRetryButton(mode) {
+    // Remove any existing retry button to prevent duplicates
+    document.getElementById('retry-failed-button')?.remove();
+
+    const reloadButton = document.getElementById('reload-page-button');
+    if (!reloadButton || !reloadButton.parentElement) return;
+
+    const retryButton = document.createElement('button');
+    retryButton.id = 'retry-failed-button';
+    retryButton.textContent = fetchTranslation('buttonRetryFailed', currentLanguage);
+    retryButton.className = 'button'; // Match existing button style
+
+    if (mode === 'single-language') {
+        // This is defined in audio_single_language.js
+        retryButton.addEventListener('click', retryFailedSingleLanguageTasks);
+    } else if (mode === 'multi-language') {
+        retryButton.addEventListener('click', retryFailedMultiLanguageAudio);
+    }
+
+    // Insert the retry button before the reload button
+    reloadButton.parentElement.insertBefore(retryButton, reloadButton);
+}
+
+/**
+ * Initiates a new pipeline run with only the multi-language tasks that previously failed.
+ */
+async function retryFailedMultiLanguageAudio() {
+    if (failedMultiLanguageTasks.length === 0) {
+        console.warn("Retry called but no failed multi-language tasks are stored.");
+        return;
+    }
+    console.log(`Retrying ${failedMultiLanguageTasks.length} failed multi-language tasks...`);
+
+    // 1. Hide buttons
+    document.getElementById('retry-failed-button')?.remove();
+    document.getElementById('reload-page-button')?.classList.add('hide');
+
+    // 2. Get UI elements
+    const statArea = document.getElementById('stat-area');
+    const progressBar = document.getElementById('progress-bar');
+    const progressInfo = document.getElementById('progress-info');
+
+    // 3. Reset UI for retry
+    const retryMsg = formatString(fetchTranslation('statusRetryingAmount', currentLanguage), failedMultiLanguageTasks.length);
+    if (statArea) statArea.value = retryMsg + "\n";
+    if (progressBar) {
+        progressBar.style.width = '0%';
+        progressBar.textContent = '0%';
+        progressBar.style.backgroundColor = '';
+    }
+
+    const totalTasksInJob = multiLangAudioCache.size + failedMultiLanguageTasks.length;
+    if (progressInfo) {
+        const processedText = fetchTranslation('statusProcessed', currentLanguage);
+        const etaText = fetchTranslation('eta', currentLanguage);
+        const calculatingText = fetchTranslation('statusCalculating', currentLanguage);
+        progressInfo.innerHTML = `<span>${processedText}: ${multiLangAudioCache.size} / ${totalTasksInJob}</span> | <span>${etaText}: ${calculatingText}</span>`;
+    }
+
+    // 4. Get tasks and clear array
+    const tasksToRetry = [...failedMultiLanguageTasks];
+    failedMultiLanguageTasks = [];
+
+    // 5. Configure and Start a new pipeline
+    const pipelineConfig = {
+        tasks: tasksToRetry, // Multi-language tasks are objects with all settings
+        audioSettings: {}, // Not needed as tasks are self-contained
+        concurrencyLimit: parseInt(document.querySelector('.max-threads')?.value || '10', 10),
+        baseFilename: multiLangBaseFilename,
+        statArea: statArea,
+        onProgress: handleMultiLangAudioProgress,
+        onComplete: (completionData) => handleMultiLangAudioComplete(completionData, currentAudioSequenceForAssembly),
+        onError: handleMultiLangAudioError
+    };
+
+    console.log("Creating and starting AudioPipelineManager for multi-language retry...");
+    try {
+        multiLangPipelineManager = new AudioPipelineManager(pipelineConfig);
+        await sleep(50);
+        multiLangPipelineManager.start();
+        console.log("--- Multi-language retry pipeline STARTED ---");
+    } catch (error) {
+        console.error("Failed to create or start multi-language retry pipeline:", error);
+        const errorMsgTemplate = fetchTranslation('alertPipelineError', currentLanguage);
+        handleMultiLangAudioError(formatString(errorMsgTemplate, error.message));
+        document.getElementById('reload-page-button')?.classList.remove('hide');
+    }
+}
+
 
 // Add new translation keys
 // (This should ideally be added to ui_translations.js)
@@ -553,6 +668,8 @@ if (typeof translations !== 'undefined' && translations.en) {
     translations.en.statusMergeError = "Merge Error!";
     translations.en.alertMergeSaveError = "Error during final merge/save: {0}";
     translations.en.statusSaveError = "Save Error!";
+    translations.en.buttonRetryFailed = "Retry Failed";
+    translations.en.statusRetryingAmount = "Retrying {0} failed parts...";
 
 } else {
     console.error("Could not add new keys to translations object. 'translations' or 'translations.en' is undefined.");

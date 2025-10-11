@@ -23,6 +23,10 @@ const ZIP_DOWNLOAD_THRESHOLD = 10; // Download as ZIP if more than this many ind
 let currentPipelineManager = null; // Holds the active pipeline instance
 let currentBaseFilename = "Audiobook"; // Store filename for access in callbacks
 let currentMergeSettings = { enabled: false, chunkSize: Infinity }; // Store merge settings
+let currentAudioSettings = {}; // Store audio settings for potential retries
+let failedSingleLanguageTasks = []; // Store failed tasks for retry
+let successfulSingleLanguageResults = []; // Store successful instances across runs
+
 
 // --- Text Chunking ---
 /**
@@ -71,6 +75,9 @@ function chunkTextForAudio(text, targetLength) {
 async function generateSingleLanguageAudiobook() {
     console.log("--- generateSingleLanguageAudiobook START (Pipeline Mode) ---");
 
+    // Reset state for a fresh run
+    successfulSingleLanguageResults = [];
+
     // 1. Get UI elements
     const sourceTextArea = document.getElementById('source-text');
     const sourceVoiceSelect = document.getElementById('sl-voice');
@@ -114,12 +121,20 @@ async function generateSingleLanguageAudiobook() {
     const mergeEnabled = mergeValue > 1;
     const mergeChunkSize = mergeValue === 100 ? Infinity : mergeValue;
 
-    // Store merge settings and base filename for callbacks
+    // Store settings and base filename for callbacks
     currentMergeSettings = { enabled: mergeEnabled, chunkSize: mergeChunkSize };
     const firstWords = sourceText.split(' ').slice(0, 5).join(' ') || `Audio_${Date.now()}`;
     const sanitizedFirstWords = firstWords.replace(/[^a-z0-9]/gi, '_').toLowerCase();
     currentBaseFilename = sanitizedFirstWords.substring(0, 50) || "Audiobook";
     console.log("Determined base filename:", currentBaseFilename);
+
+    // Store audio settings for potential retry
+    currentAudioSettings = {
+        voice: voice,
+        rate: rate,
+        pitch: pitch,
+        volume: "+0%"
+    };
 
     // 4. Reset UI and clear any previous pipeline
     console.log("Resetting UI and clearing previous pipeline (if any)...");
@@ -181,12 +196,7 @@ async function generateSingleLanguageAudiobook() {
     // 7. Configure and Start the Pipeline
     const pipelineConfig = {
         tasks: audioChunks, // Use the 'tasks' property as preferred by the updated manager
-        audioSettings: {
-            voice: voice, // Pass the raw voice value, manager will format
-            rate: rate,
-            pitch: pitch,
-            volume: "+0%" // Default volume
-        },
+        audioSettings: currentAudioSettings,
         concurrencyLimit: maxThreads,
         baseFilename: currentBaseFilename, // Pass to manager (used by tasks)
         mergeSettings: currentMergeSettings, // Pass to manager (used by tasks?) - Check if needed by task runner
@@ -249,8 +259,12 @@ function handlePipelineProgress(progressData) {
         const failedText = fetchTranslation('statusFailedLabel', currentLanguage);
         const etaText = fetchTranslation('eta', currentLanguage);
 
+        // Update progress info with combined count of all successful parts so far
+        const totalSuccess = successfulSingleLanguageResults.length + processed;
+        const totalCompleted = totalSuccess + failed;
+
         progressInfo.innerHTML = `
-            <span>${processedText}: ${processed} / ${total}</span> |
+            <span>${processedText}: ${totalSuccess} / ${total}</span> |
             ${failed > 0 ? `<span>${failedText} ${failed}</span> |` : ''}
             <span>${etaText}: ${etaString}</span>
         `;
@@ -260,109 +274,101 @@ function handlePipelineProgress(progressData) {
 /**
  * Handles the completion event from the AudioPipelineManager.
  * @param {object} completionData - Data from the pipeline.
- * @param {number} completionData.processed - Total successfully processed tasks.
- * @param {number} completionData.failed - Total failed tasks.
- * @param {number} completionData.total - Total tasks.
- * @param {Array<SocketEdgeTTS|null>} completionData.results - Array of task instances or nulls.
+ * @param {number} completionData.processed - Total successfully processed tasks in this run.
+ * @param {number} completionData.failed - Total failed tasks in this run.
+ * @param {number} completionData.total - Total tasks in this run.
+ * @param {Array<SocketEdgeTTS|null>} completionData.results - Array of task instances from this run.
  */
-function handlePipelineComplete(completionData) {
+async function handlePipelineComplete(completionData) {
     const { processed, failed, total, results } = completionData;
-    console.log(`Pipeline finished. Success: ${processed}, Failed: ${failed}, Total: ${total}`);
+    console.log(`Pipeline run finished. Success: ${processed}, Failed: ${failed}`);
 
     const statArea = document.getElementById('stat-area');
     const progressInfo = document.getElementById('progress-info');
-    const progressBar = document.getElementById('progress-bar'); // Get progress bar for final state
+    const progressBar = document.getElementById('progress-bar');
+    const reloadButton = document.getElementById('reload-page-button');
+    reloadButton?.classList.remove('hide');
+
+    // Separate successful and failed instances from this run
+    const currentRunSuccesses = results.filter(instance => instance && instance.mp3_saved);
+    const currentRunFailures = results.filter(instance => !instance || !instance.mp3_saved);
+
+    // Add this run's successes to the master list
+    successfulSingleLanguageResults.push(...currentRunSuccesses);
 
     // --- Check for Failures ---
     if (failed > 0) {
-        // Use fetchTranslation for templates
-        const alertMsgTemplate = fetchTranslation('alertAudioGenerationFailed', currentLanguage);
-        console.error(formatString(alertMsgTemplate, failed));
-
-        let finalMessage = `\n${fetchTranslation('audioGenFailedMessage', currentLanguage)}`;
+        let finalMessage = `\n--- ${fetchTranslation('audioGenFailedMessage', currentLanguage)} ---`;
         const detailsTemplate = fetchTranslation('audioGenFailedDetails', currentLanguage);
         finalMessage += `\n${formatString(detailsTemplate, failed)}`;
-        finalMessage += `\n${fetchTranslation('audioGenFailedNoOutput', currentLanguage)}`;
-        finalMessage += "\n---";
+        if (statArea) statArea.value += finalMessage;
 
-        if (statArea) {
-            statArea.value += finalMessage;
-            statArea.scrollTop = statArea.scrollHeight; // Scroll to bottom
-        }
+        const totalSuccess = successfulSingleLanguageResults.length;
+        const totalTasksInJob = totalSuccess + failed; // Total tasks across all runs so far
+
         if (progressInfo) {
-            // Use fetchTranslation for labels
             const processedText = fetchTranslation('statusProcessed', currentLanguage);
             const failedText = fetchTranslation('statusFailedLabel', currentLanguage);
             const failedExclaimText = fetchTranslation('statusFailedExclaim', currentLanguage);
             progressInfo.innerHTML = `
-                <span>${processedText}: ${processed} / ${total}</span> |
+                <span>${processedText}: ${totalSuccess} / ${totalTasksInJob}</span> |
                 <span style="color: red;">${failedText} ${failed}</span> |
                 <span style="color: red;">${failedExclaimText}</span>
             `;
         }
         if (progressBar) {
-            // Use fetchTranslation for template
             const failedProgressTemplate = fetchTranslation('statusFailedProgress', currentLanguage);
-            progressBar.style.backgroundColor = '#dc3545'; // Red color for failure
-            progressBar.textContent = formatString(failedProgressTemplate, failed, total);
+            progressBar.style.backgroundColor = '#dc3545';
+            progressBar.textContent = formatString(failedProgressTemplate, failed, totalTasksInJob);
         }
 
-        // Clean up all instances (failed and potentially successful ones)
-        console.log("Cleaning up task instances due to failure...");
-        cleanupTaskInstances(results); // Call cleanup function
+        // Store original text of failed tasks for retry
+        failedSingleLanguageTasks = currentRunFailures.map(instance => instance.originalTask);
 
-        // Pipeline is done, clear the reference
+        if (failedSingleLanguageTasks.length > 0) {
+            createAndShowRetryButton('single-language');
+        }
+
+        // IMPORTANT: Clean up ONLY the failed instances from this run. Keep successes.
+        cleanupTaskInstances(currentRunFailures);
         currentPipelineManager = null;
-        return; // Stop execution here
+        return;
     }
 
-    // --- Handle Success ---
-    // Use fetchTranslation for templates
-    let finalMessage = `\n${fetchTranslation('audioGenSuccessMessage', currentLanguage)}`;
+    // --- Handle Complete Success (no failures in this run) ---
+    const totalSuccess = successfulSingleLanguageResults.length;
+    let finalMessage = `\n--- ${fetchTranslation('audioGenSuccessMessage', currentLanguage)} ---`;
     const successDetailsTemplate = fetchTranslation('audioGenSuccessDetails', currentLanguage);
-    finalMessage += formatString(successDetailsTemplate, processed, total);
-    finalMessage += " ---";
+    finalMessage += `\n${formatString(successDetailsTemplate, totalSuccess, totalSuccess)}`;
+    finalMessage += "\n---";
 
-    if (statArea) {
-        statArea.value += finalMessage;
-        statArea.scrollTop = statArea.scrollHeight; // Scroll to bottom
-    }
+    if (statArea) statArea.value += finalMessage;
+
     if (progressInfo) {
-        // Use fetchTranslation for labels
         const processedText = fetchTranslation('statusProcessed', currentLanguage);
         const finishedExclaimText = fetchTranslation('statusFinishedExclaim', currentLanguage);
         progressInfo.innerHTML = `
-            <span>${processedText}: ${processed} / ${total}</span> |
+            <span>${processedText}: ${totalSuccess} / ${totalSuccess}</span> |
             <span>${finishedExclaimText}</span>
         `;
     }
     if (progressBar) {
-        // Ensure progress bar shows 100% and maybe a success color
         progressBar.style.width = '100%';
         progressBar.textContent = '100%';
-        progressBar.style.backgroundColor = '#28a745'; // Green color for success
+        progressBar.style.backgroundColor = '#28a745';
     }
 
-
-    // Trigger saving/merging logic only on complete success
-    if (processed > 0) { // Should always be true if failed === 0 and total > 0
-        console.log("Triggering post-pipeline saving/merging...");
-        // Pass results, filename, settings, and statArea. This function will handle calling the appropriate save/zip/merge function.
-        // The called function will handle clearing instances internally.
-        // saveAudioResults now calls doMerge_Pipeline from audio_helpers.js if needed
-        saveAudioResults(results, currentBaseFilename, currentMergeSettings, statArea); // Pass statArea
-    } else if (total === 0) {
-        console.log("Pipeline finished successfully, but there were no tasks to process.");
+    // Trigger saving/merging logic with all successful parts from all runs
+    if (totalSuccess > 0) {
+        console.log("Triggering final saving/merging...");
+        await saveAudioResults(successfulSingleLanguageResults, currentBaseFilename, currentMergeSettings, statArea);
     } else {
-        // This case (failed=0, processed=0, total>0) should theoretically not happen
-        // but handle defensively.
-        console.warn("Pipeline finished with no failures but also no processed parts. Skipping save.");
-        cleanupTaskInstances(results); // Clean up anyway
+        console.log("Pipeline finished successfully, but there were no tasks to process.");
     }
 
-    // Pipeline is done, clear the reference
     currentPipelineManager = null;
 }
+
 
 /**
  * Handles critical errors reported by the AudioPipelineManager (e.g., initialization errors).
@@ -373,6 +379,9 @@ function handlePipelineError(errorMessage) {
     const statArea = document.getElementById('stat-area');
     const progressInfo = document.getElementById('progress-info');
     const progressBar = document.getElementById('progress-bar');
+    const reloadButton = document.getElementById('reload-page-button');
+    reloadButton?.classList.remove('hide');
+
 
     const errorText = `\n${errorMessage}`; // Use the passed message
 
@@ -412,6 +421,10 @@ function resetSingleLanguageUI() {
         currentPipelineManager.clear(); // This should call clear on active instances
         currentPipelineManager = null;
     }
+
+    // Clear failed tasks and remove the retry button
+    failedSingleLanguageTasks = [];
+    document.getElementById('retry-failed-button')?.remove();
 
     // Reset UI elements
     const statArea = document.getElementById('stat-area');
@@ -556,3 +569,98 @@ async function saveIndividualFiles_Pipeline(successfulResults, baseFilename) {
     console.log("Cleanup complete.");
 }
 
+// --- Retry Logic ---
+
+/**
+ * Creates and displays the 'Retry Failed' button.
+ * @param {string} mode - 'single-language' or 'multi-language' to link to the correct retry function.
+ */
+function createAndShowRetryButton(mode) {
+    // Remove any existing retry button to prevent duplicates
+    document.getElementById('retry-failed-button')?.remove();
+
+    const reloadButton = document.getElementById('reload-page-button');
+    if (!reloadButton || !reloadButton.parentElement) return;
+
+    const retryButton = document.createElement('button');
+    retryButton.id = 'retry-failed-button';
+    retryButton.textContent = fetchTranslation('buttonRetryFailed', currentLanguage);
+    retryButton.className = 'button'; // Match existing button style
+
+    if (mode === 'single-language') {
+        retryButton.addEventListener('click', retryFailedSingleLanguageTasks);
+    } else if (mode === 'multi-language') {
+        // This will be used by audio_multi_language.js
+        retryButton.addEventListener('click', retryFailedMultiLanguageAudio);
+    }
+
+    // Insert the retry button before the reload button
+    reloadButton.parentElement.insertBefore(retryButton, reloadButton);
+}
+
+/**
+ * Initiates a new pipeline run with only the tasks that previously failed.
+ */
+async function retryFailedSingleLanguageTasks() {
+    if (failedSingleLanguageTasks.length === 0) {
+        console.warn("Retry called but no failed tasks are stored.");
+        return;
+    }
+    console.log(`Retrying ${failedSingleLanguageTasks.length} failed single-language tasks...`);
+
+    // 1. Hide buttons and reset state
+    document.getElementById('retry-failed-button')?.remove();
+    document.getElementById('reload-page-button')?.classList.add('hide');
+
+    // 2. Get UI elements
+    const statArea = document.getElementById('stat-area');
+    const progressContainer = document.getElementById('progress-container');
+    const progressBar = document.getElementById('progress-bar');
+    const progressInfo = document.getElementById('progress-info');
+
+    // 3. Reset progress UI for the retry attempt
+    const retryMsg = formatString(fetchTranslation('statusRetryingAmount', currentLanguage), failedSingleLanguageTasks.length);
+    if (statArea) statArea.value = retryMsg + "\n";
+    if (progressBar) {
+        progressBar.style.width = '0%';
+        progressBar.textContent = '0%';
+        progressBar.style.backgroundColor = '';
+    }
+    if (progressInfo) {
+        const processedText = fetchTranslation('statusProcessed', currentLanguage);
+        const etaText = fetchTranslation('eta', currentLanguage);
+        const calculatingText = fetchTranslation('statusCalculating', currentLanguage);
+        const totalTasksInJob = successfulSingleLanguageResults.length + failedSingleLanguageTasks.length;
+        progressInfo.innerHTML = `<span>${processedText}: ${successfulSingleLanguageResults.length} / ${totalTasksInJob}</span> | <span>${etaText}: ${calculatingText}</span>`;
+    }
+
+
+    // 4. Get tasks and clear the global array for the next potential run
+    const tasksToRetry = [...failedSingleLanguageTasks];
+    failedSingleLanguageTasks = [];
+
+    // 5. Configure and start a new pipeline with only the failed tasks
+    const pipelineConfig = {
+        tasks: tasksToRetry,
+        audioSettings: currentAudioSettings, // Reuse settings from the original run
+        concurrencyLimit: parseInt(document.querySelector('.max-threads')?.value || '10', 10),
+        baseFilename: currentBaseFilename,
+        mergeSettings: currentMergeSettings,
+        statArea: statArea,
+        onProgress: handlePipelineProgress,
+        onComplete: handlePipelineComplete, // The magic: it calls the same completion handler
+        onError: handlePipelineError
+    };
+
+    try {
+        currentPipelineManager = new AudioPipelineManager(pipelineConfig);
+        await sleep(50);
+        currentPipelineManager.start();
+        console.log("--- Retry pipeline started for single-language tasks ---");
+    } catch (error) {
+        console.error("Failed to create or start retry pipeline:", error);
+        const errorMsgTemplate = fetchTranslation('alertPipelineError', currentLanguage);
+        handlePipelineError(formatString(errorMsgTemplate, error.message));
+        resetSingleLanguageUI();
+    }
+}
