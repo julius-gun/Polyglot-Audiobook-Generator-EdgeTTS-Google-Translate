@@ -35,6 +35,7 @@ async function generateMultiLanguageAudio(sourceLang, sourceVoice, targets) {
     // Reset UI elements specifically for this flow
     document.getElementById('reload-page-button')?.classList.add('hide');
     document.getElementById('retry-failed-button')?.remove(); // Remove old retry button
+    document.getElementById('save-incomplete-button')?.remove(); // Remove save incomplete button
     const bookContainer = document.getElementById('output'); // Get bookContainer early
     bookContainer.innerHTML = ''; // Clear previous output
     document.getElementById('stat-area')?.classList.add('hide');
@@ -450,7 +451,7 @@ async function handleMultiLangAudioComplete(completionData, audioSequenceForAsse
             .map(instance => instance.originalTask);
 
         if (failedMultiLanguageTasks.length > 0) {
-            createAndShowRetryButton('multi-language');
+            createAndShowPostFailureButtons('multi-language');
         }
 
         // Clean up only failed instances from this run
@@ -561,12 +562,13 @@ function handleMultiLangAudioError(errorMessage) {
 // --- Retry Logic ---
 
 /**
- * Creates and displays the 'Retry Failed' button.
- * @param {string} mode - 'single-language' or 'multi-language' to link to the correct retry function.
+ * Creates and displays the 'Retry Failed' and 'Save Incomplete' buttons.
+ * @param {string} mode - 'single-language' or 'multi-language' to link to the correct functions.
  */
-function createAndShowRetryButton(mode) {
-    // Remove any existing retry button to prevent duplicates
+function createAndShowPostFailureButtons(mode) {
+    // Remove any existing buttons to prevent duplicates
     document.getElementById('retry-failed-button')?.remove();
+    document.getElementById('save-incomplete-button')?.remove();
 
     const reloadButton = document.getElementById('reload-page-button');
     if (!reloadButton || !reloadButton.parentElement) return;
@@ -574,18 +576,90 @@ function createAndShowRetryButton(mode) {
     const retryButton = document.createElement('button');
     retryButton.id = 'retry-failed-button';
     retryButton.textContent = fetchTranslation('buttonRetryFailed', currentLanguage);
-    retryButton.className = 'button'; // Match existing button style
+    retryButton.className = 'button';
+
+    const saveIncompleteButton = document.createElement('button');
+    saveIncompleteButton.id = 'save-incomplete-button';
+    saveIncompleteButton.textContent = fetchTranslation('buttonSaveIncomplete', currentLanguage);
+    saveIncompleteButton.className = 'button-secondary';
 
     if (mode === 'single-language') {
-        // This is defined in audio_single_language.js
+        // These are defined in audio_single_language.js
         retryButton.addEventListener('click', retryFailedSingleLanguageTasks);
+        saveIncompleteButton.addEventListener('click', handleSaveIncompleteSingleLanguage);
     } else if (mode === 'multi-language') {
         retryButton.addEventListener('click', retryFailedMultiLanguageAudio);
+        saveIncompleteButton.addEventListener('click', handleSaveIncompleteMultiLanguage);
     }
 
-    // Insert the retry button before the reload button
+    // Insert the new buttons before the reload button
     reloadButton.parentElement.insertBefore(retryButton, reloadButton);
+    reloadButton.parentElement.insertBefore(saveIncompleteButton, reloadButton);
 }
+
+/**
+ * Saves the multi-language audiobook with all currently successful parts.
+ */
+async function handleSaveIncompleteMultiLanguage() {
+    console.log("User chose to save incomplete multi-language audiobook.");
+
+    // Hide all action buttons to prevent further actions
+    document.getElementById('retry-failed-button')?.remove();
+    document.getElementById('save-incomplete-button')?.remove();
+    document.getElementById('reload-page-button')?.classList.add('hide');
+
+    const statArea = document.getElementById('stat-area');
+
+    try {
+        if (multiLangAudioCache.size > 0 && currentAudioSequenceForAssembly.length > 0) {
+            if (statArea) statArea.value += `\n\n--- ${fetchTranslation('statusSavingIncomplete', currentLanguage)} ---`;
+            console.log("Assembling incomplete audio file from cache...");
+
+            const finalAudioParts = [];
+            for (const sentenceSequence of currentAudioSequenceForAssembly) {
+                for (const key of sentenceSequence) {
+                    if (multiLangAudioCache.has(key)) {
+                        finalAudioParts.push(multiLangAudioCache.get(key));
+                    }
+                    // We intentionally skip parts not in the cache
+                }
+            }
+
+            console.log(`Concatenating ${finalAudioParts.length} successful audio parts...`);
+            const combinedAudioData = concatenateUint8Arrays(finalAudioParts);
+            const finalFilename = `${multiLangBaseFilename}_incomplete.mp3`;
+            console.log(`Saving combined audio as ${finalFilename}`);
+            const audioBlob = new Blob([combinedAudioData.buffer], { type: 'audio/mpeg' });
+            saveAs(audioBlob, finalFilename);
+
+            if (statArea) {
+                const message = formatString(fetchTranslation('statusCombinedAudioSaved', currentLanguage), finalFilename);
+                statArea.value += `\n--- ${message} ---`;
+                statArea.scrollTop = statArea.scrollHeight;
+            }
+        } else {
+            console.error("No successful audio parts found to merge.");
+            if (statArea) statArea.value += `\n--- ${fetchTranslation('alertNoAudioPartsToMerge', currentLanguage)} ---`;
+            alert(fetchTranslation('alertNoAudioPartsToMerge', currentLanguage));
+        }
+    } catch (error) {
+        console.error("Error during incomplete audio merging or saving:", error);
+        if (statArea) {
+            const message = formatString(fetchTranslation('alertMergeSaveError', currentLanguage), error.message);
+            statArea.value += `\n--- ${message} ---`;
+        }
+    } finally {
+        // Show reload button again after saving is done
+        document.getElementById('reload-page-button')?.classList.remove('hide');
+
+        // Final state cleanup
+        multiLangAudioCache.clear();
+        failedMultiLanguageTasks = [];
+        currentPipelineManager = null;
+        // cleanupTaskInstances is not needed here as we didn't run a pipeline, just used the cache.
+    }
+}
+
 
 /**
  * Initiates a new pipeline run with only the multi-language tasks that previously failed.
@@ -599,6 +673,7 @@ async function retryFailedMultiLanguageAudio() {
 
     // 1. Hide buttons
     document.getElementById('retry-failed-button')?.remove();
+    document.getElementById('save-incomplete-button')?.remove();
     document.getElementById('reload-page-button')?.classList.add('hide');
 
     // 2. Get UI elements
