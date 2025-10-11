@@ -6,7 +6,7 @@ const translations = {
         targetLabel2: 'Target Language 2:',
         targetLabel3: 'Target Language 3:',
         targetLabel4: 'Target Language 4:',
-        labelVoice: 'Voice:', // <<< ADDED KEY
+        labelVoice: 'Voice:',
         buttonAddLanguage: 'Add target language',
         buttonRemoveLanguage: 'Remove target language',
         enterText: 'Enter your source text here...',
@@ -18,8 +18,10 @@ const translations = {
         openBookViewButton: 'Open in Book-View',
         saveEpubButton: 'Save as EPUB',
         reloadPageButton: 'Delete',
+        buttonRetryFailed: "Retry Failed",
+        buttonSaveIncomplete: "Save Incomplete Audiobook",
         translationFinishedMessage: 'Translation process over.',
-        enterSourceTextLabel: 'Enter source text:', // Added translation for "Enter source text:"
+        enterSourceTextLabel: 'Enter source text:',
         prioritizedLabel: '--- Prioritized ---',
         allLanguagesLabel: '--- All Languages ---',
         multilingualLabel: '--- Multilingual ---',
@@ -42,6 +44,7 @@ const translations = {
         statusErrorWebSocketSupport: 'Error: WebSocket Not Supported',
         statusErrorWebSocket: 'WebSocket Error',
         statusRetrying: 'Retrying ({0}/{1})...', // {0} = current retry, {1} = max retries
+        statusRetryingAmount: "Retrying {0} failed parts...",
         statusFailedAfterRetries: 'Failed ({0}) after {1} retries.', // {0} = context, {1} = max retries
         statusInitializing: 'Initializing',
         statusQueued: 'Queued',
@@ -50,6 +53,7 @@ const translations = {
         statusRunning: 'Running',
         statusStopping: 'Stopping',
         statusError: 'Error', // General error status
+        statusSaveError: "Save Error!",
         statusFailed: 'Failed', // Simple failed status
         statusFailedLabel: 'Failed:', // Label in progress info
         statusFailedExclaim: 'Failed!', // Status in progress info
@@ -62,20 +66,29 @@ const translations = {
         statusSavedInZip: 'Saved in ZIP',
         statusZipCreationFailed: 'ZIP Creation Failed',
         statusSaving: 'Saving...',
+        statusSavingIncomplete: "Saving all successful audio parts...",
         statusDownloadStarted: 'Download Started',
         statusErrorDownloading: 'Error Downloading',
         statusMerging: 'Merging...',
+        statusMergingAudio: "Assembling and saving final audio file...",
         statusMergedAndSaved: 'Merged & Saved',
+        statusMergeError: "Merge Error!",
+        statusCombinedAudioSaved: "Combined audio saved as {0}",
         // Alerts & User Messages
-        alertEnterSourceText: 'Please enter some source text before generating.', // Modified original alert text slightly
-        alertSelectVoice: 'Please select a source language voice.', // Modified original alert text slightly
+        alertEnterSourceText: 'Please enter some source text before generating.',
+        alertSelectVoice: 'Please select a source language voice.',
+        alertSelectTargetLang: "Please select at least one target language for multi-language audio.",
         alertCouldNotSplit: 'Could not split the text into processable chunks.',
         alertAudioGenerationFailed: 'Audio generation failed: {0} part(s) could not be created after retries.', // {0} = count
+        alertTranslationFailed: "The translation process failed. Please check the log and try again.",
         alertJszipNotFound: 'Error: JSZip library not found. Cannot create ZIP.',
         alertJszipLoad: 'Please ensure the library is loaded.',
         alertZipError: 'Error generating or saving ZIP file: {0}', // {0} = error message
         alertNoFilesAddedToZip: 'No valid files were added to the ZIP archive.',
+        alertNoAudioTasks: "No audio tasks could be created. This might be due to empty text or translation errors.",
+        alertNoAudioPartsToMerge: "Error: No successful audio parts found to merge.",
         alertSaveMergedError: 'Error saving merged file {0}. See console for details.', // {0} = filename
+        alertMergeSaveError: "Error during final merge/save: {0}",
         alertPipelineError: 'Audio generation failed: {0}', // {0} = error message
         alertPopupBlocked: 'Could not open book view window. Please check your popup blocker settings.',
         alertFileTypeNotSupported: 'File type "{0}" not supported for text insertion.', // {0} = file extension
@@ -122,6 +135,7 @@ const translations = {
         epubDefaultFilename: 'Bilingual Book.epub', // Default EPUB filename
         processingFileDefaultName: 'Book', // Default name in processing_file.js
         bookViewWindowTitle: 'Book View', // Title for the book view popup window
-        audioGenerationProgressTitle: "Audio Generation Progress", // <<< ADDED KEY
+        audioGenerationProgressTitle: "Audio Generation Progress",
+        translationProgressTitle: "Translation Progress",
     },
 };

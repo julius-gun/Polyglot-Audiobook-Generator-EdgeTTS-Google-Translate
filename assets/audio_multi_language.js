@@ -727,25 +727,3 @@ async function retryFailedMultiLanguageAudio() {
         document.getElementById('reload-page-button')?.classList.remove('hide');
     }
 }
-
-
-// Add new translation keys
-// (This should ideally be added to ui_translations.js)
-if (typeof translations !== 'undefined' && translations.en) {
-    translations.en.audioGenerationProgressTitle = "Audio Generation Progress";
-    translations.en.alertSelectTargetLang = "Please select at least one target language for multi-language audio.";
-    translations.en.translationProgressTitle = "Translation Progress";
-    translations.en.alertTranslationFailed = "The translation process failed. Please check the log and try again.";
-    translations.en.alertNoAudioTasks = "No audio tasks could be created. This might be due to empty text or translation errors.";
-    translations.en.statusMergingAudio = "Assembling and saving final audio file...";
-    translations.en.statusCombinedAudioSaved = "Combined audio saved as {0}";
-    translations.en.alertNoAudioPartsToMerge = "Error: No successful audio parts found to merge.";
-    translations.en.statusMergeError = "Merge Error!";
-    translations.en.alertMergeSaveError = "Error during final merge/save: {0}";
-    translations.en.statusSaveError = "Save Error!";
-    translations.en.buttonRetryFailed = "Retry Failed";
-    translations.en.statusRetryingAmount = "Retrying {0} failed parts...";
-
-} else {
-    console.error("Could not add new keys to translations object. 'translations' or 'translations.en' is undefined.");
-}

@@ -708,12 +708,3 @@ async function retryFailedSingleLanguageTasks() {
         resetSingleLanguageUI();
     }
 }
-
-
-// Add new translation keys
-if (typeof translations !== 'undefined' && translations.en) {
-    translations.en.buttonSaveIncomplete = "Save Incomplete Audiobook";
-    translations.en.statusSavingIncomplete = "Saving all successful audio parts...";
-} else {
-    console.error("Could not add new keys to translations object. 'translations' or 'translations.en' is undefined.");
-}
