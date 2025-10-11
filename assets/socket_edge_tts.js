@@ -81,12 +81,21 @@ class SocketEdgeTTS {
 	_handleErrorOrRetry(errorContext) {
 		if (this.currentRetryCount < this.maxRetries) {
 			this.currentRetryCount++;
-			// Use formatString or similar helper assuming it exists
-			const retryMsgTemplate = fetchTranslation('statusRetrying', currentLanguage); // Use fetchTranslation
-			const retryMsg = formatString(retryMsgTemplate, this.currentRetryCount, this.maxRetries);
+
+			// Implement exponential backoff with jitter for retries
+			const randomJitter = Math.random() * 2000; // Add 0-2 seconds of random delay to prevent simultaneous retries
+			const backoffDelay = Math.min(120000, this.retryDelay * Math.pow(2, this.currentRetryCount - 1)); // Double delay each time, cap at 120s
+			const finalDelay = backoffDelay + randomJitter;
+
+			// Build a more informative message without needing a new translation key
+			const retryMsgTemplate = fetchTranslation('statusRetrying', currentLanguage);
+			let retryMsg = formatString(retryMsgTemplate, this.currentRetryCount, this.maxRetries);
+			retryMsg += ` Next attempt in ${Math.round(finalDelay / 1000)}s.`;
+
 			console.warn(`Part ${this.indexpart + 1}: ${retryMsg}`);
 			this.update_stat(retryMsg);
-			// Use setTimeout for the delay before restarting
+
+			// Use setTimeout for the new calculated delay before restarting
 			setTimeout(() => {
 				// Check if cleared externally before retrying
 				if (this.currentRetryCount <= this.maxRetries) {
@@ -94,7 +103,7 @@ class SocketEdgeTTS {
 				} else {
 					console.log(`Part ${this.indexpart + 1}: Retry cancelled as instance was cleared.`);
 				}
-			}, this.retryDelay);
+			}, finalDelay);
 		} else {
 			// Retries exhausted, signal final failure
 			const finalErrorMsgTemplate = fetchTranslation('statusFailedAfterRetries', currentLanguage); // Use fetchTranslation
