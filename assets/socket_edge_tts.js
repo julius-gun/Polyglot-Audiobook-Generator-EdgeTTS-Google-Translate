@@ -27,7 +27,7 @@ class SocketEdgeTTS {
 	constructor(_indexpart, _filename, _filenum,
 		_voice, _pitch, _rate, _volume, _text,
 		_statArea, /* REMOVED _obj_threads_info */ _save_to_var,
-		_onCompleteOrErrorCallback, _retrySettings = { maxRetries: 20, delay: 5000 }) { // Added retrySettings
+		_onCompleteOrErrorCallback, _retrySettings = { maxRetries: 5000, delay: 5000 }) { // Added retrySettings
 		this.bytes_data_separator = new TextEncoder().encode("Path:audio\r\n")
 		this.data_separator = new Uint8Array(this.bytes_data_separator)
 
