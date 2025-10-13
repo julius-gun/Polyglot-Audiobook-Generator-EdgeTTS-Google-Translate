@@ -107,6 +107,11 @@ const translations = {
         textPieces: 'pcs.', // For merge slider suffix
         placeholderStatArea: 'Audio generation status will appear here...',
         titleSettingsButton: 'Settings',
+        titleInfoButton: 'About this application',
+        infoModalTitle: 'About Polyglot Audiobook Generator',
+        infoModalText1: 'This tool helps you generate audio files from text in multiple languages. It uses Google Translate for text translation and Microsoft Edge\'s online Text-to-Speech (TTS) service for high-quality voice synthesis.',
+        infoModalText2: 'You can generate audio in a single language or create a bilingual view to compare translations side-by-side. The audio generation is highly parallelized to speed up the process. Depending on the length of the text it can still take many hours, so please be patient and leave the webpage on top, so that it stays active.',
+        infoModalLink: 'Click here to listen to the different voices available via Edge TTS.',
         // Help System (Example)
         helpPeriodReplacementTitle: 'Period Replacement Mode: {0}', // {0} = mode (V1/V2/V3)
         helpPeriodReplacementV1: 'Replaces all periods in the text with the selected character.',

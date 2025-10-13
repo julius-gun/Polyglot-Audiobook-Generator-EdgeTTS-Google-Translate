@@ -26,6 +26,7 @@ function translateUIElements() {
     pageTitle: document.getElementById('page-title'), // For browser tab title
     pageTitleH1: document.getElementById('page-title-h1'), // <<< Add this line for the visible H1
     settingsButtonTitle: document.getElementById('settings-button'), // Attribute: title
+    infoButtonTitle: document.getElementById('info-button'), // Attribute: title
     uiLanguageText: document.getElementById('ui-language-text'), // Span inside label
     headerLanguageLabel: document.getElementById('header-language-label'),
     headerVoiceLabel: document.getElementById('header-voice-label'),
@@ -72,6 +73,11 @@ function translateUIElements() {
     // Firefox Warning
     firefoxWarningTitle: document.getElementById('firefox-warning-title'),
     firefoxWarningBody: document.getElementById('firefox-warning-body'),
+    // Info Modal
+    infoModalTitle: document.getElementById('info-modal-title'),
+    infoModalText1: document.getElementById('info-modal-text1'),
+    infoModalText2: document.getElementById('info-modal-text2'),
+    infoModalLink: document.getElementById('info-modal-link'),
   };
 
   // Helper to get translation (now synchronous)
@@ -95,6 +101,9 @@ function translateUIElements() {
           element.textContent = translatedText;
         } else if (key === 'settingsButtonTitle') { // <<< Separate block for settings button title
           translatedText = getTranslation('titleSettingsButton');
+          element.title = translatedText;
+        } else if (key === 'infoButtonTitle') {
+          translatedText = getTranslation('titleInfoButton');
           element.title = translatedText;
         } else if (key === 'enterText' || key === 'statAreaPlaceholder') { // Use correct key 'statAreaPlaceholder'
           translatedText = getTranslation(key === 'enterText' ? 'enterText' : 'placeholderStatArea'); // Map key correctly
@@ -404,4 +413,3 @@ function displayTranslatedBatch(batch, translationsData, sourceLang, targetLangs
 
 // Ensure there are no missing closing braces or syntax errors introduced.
 // The last line should be the closing brace of displayTranslatedBatch
-

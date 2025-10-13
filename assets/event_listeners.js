@@ -10,6 +10,7 @@
 //   - insertTextIntoSourceArea, convertFb2ToTxt, convertEpubToTxt, convertZipToTxt (texts_converter.js)
 //   - toggleAdvancedSettingsVisibility, saveSettings (settings.js) // Added dependencies
 //   - attachHelpListeners (help_system.js) // Added dependency
+//   - attachInfoModalListeners (info_modal.js) // Added dependency
 //   - fetchTranslation (translation_api.js) // Added dependency
 
 // Helper function to attach event listeners
@@ -128,6 +129,13 @@ function attachEventListeners() {
       console.warn("attachHelpListeners function not found.");
   }
   // --- End Help System Listeners ---
+
+  // --- Info Modal Listeners ---
+  if (typeof attachInfoModalListeners === 'function') {
+      attachInfoModalListeners();
+  } else {
+      console.warn("attachInfoModalListeners function not found.");
+  }
 
 
   // UI language selector listener is attached within createLanguageSelector in language_dropdown.js

@@ -339,6 +339,7 @@ button[type="submit"]:hover,
     margin-left: var(--space-xs); /* Small space after label */
 }
 
+#info-button,
 #settings-button {
     font-size: 1.2rem; /* Adjust icon size */
     padding: var(--space-xs); /* Minimal padding around icon */
@@ -346,6 +347,7 @@ button[type="submit"]:hover,
     border-radius: var(--border-radius-sm); /* Match select */
 }
 
+#info-button:hover,
 #settings-button:hover {
     background-color: rgba(0, 0, 0, 0.08); /* Slightly darker subtle hover */
 }
@@ -692,6 +694,73 @@ body.settings-visible .rate-pitch-controls {
 #firefox-warning strong {
     font-weight: 600;
 }
+
+/* Info Modal */
+.modal-overlay {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background-color: rgba(0, 0, 0, 0.6);
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    z-index: 1000;
+    opacity: 1;
+    visibility: visible;
+    transition: opacity 0.2s ease, visibility 0s linear 0s;
+}
+.modal-overlay.hide {
+    opacity: 0;
+    visibility: hidden;
+    transition: opacity 0.2s ease, visibility 0s linear 0.2s;
+}
+
+.modal-content {
+    background-color: var(--color-background);
+    padding: var(--space-lg) var(--space-xl);
+    border-radius: var(--border-radius-lg);
+    box-shadow: var(--box-shadow-md);
+    max-width: 600px;
+    width: 90%;
+    position: relative;
+    transform: scale(0.95);
+    opacity: 0;
+    transition: transform 0.2s ease, opacity 0.2s ease;
+}
+.modal-overlay:not(.hide) .modal-content {
+    transform: scale(1);
+    opacity: 1;
+}
+
+.modal-content h2 {
+    margin-top: 0;
+    margin-bottom: var(--space-md);
+    font-size: var(--font-size-lg);
+}
+.modal-content p {
+    margin-bottom: var(--space-sm);
+}
+
+.modal-close-button {
+    position: absolute;
+    top: var(--space-sm);
+    right: var(--space-md);
+    font-size: 1.8rem;
+    font-weight: 300;
+    line-height: 1;
+    color: var(--color-text-secondary);
+    background: none;
+    border: none;
+    cursor: pointer;
+    padding: 0;
+    transition: color 0.15s ease;
+}
+.modal-close-button:hover {
+    color: var(--color-text-primary);
+}
+
 
 /* --- Media Queries (Basic Responsiveness) --- */
 

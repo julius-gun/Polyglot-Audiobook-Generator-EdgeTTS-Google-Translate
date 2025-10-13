@@ -54,6 +54,7 @@
   <script src="assets/audio_multi_language.js" defer></script>
   <script src="assets/bilingual_view_generator.js" defer></script>
   <script src="assets/app_logic.js" defer></script>
+  <script src="assets/info_modal.js" defer></script>
   <script src="assets/event_listeners.js" defer></script>
   <script src="assets/initialization.js" defer></script>
   <script src="assets/main.js" defer></script>
@@ -85,6 +86,9 @@
         </label>
         <!-- UI Language selector will be added here by JavaScript -->
       </div>
+      <button class="button-subtle" id="info-button" title="">
+        <i class="fas fa-info-circle"></i>
+      </button>
       <button class="button-subtle" id="settings-button" title=""> <!-- Title updated by JS -->
         <i class="fas fa-cog"></i> <!-- FontAwesome Icon -->
       </button>
@@ -281,7 +285,7 @@
       <h4 id="advanced-audio-settings-title" class="mb-2"></h4> <!-- Text updated by JS -->
       <div class="slider-container mb-1" id="div-threads">
         <label for="max-threads" id="threads-label" style="flex-basis: 80px;"></label> <!-- Text updated by JS -->
-        <input type="range" id="max-threads" class="max-threads" min="1" max="60" value="10" step="1"
+        <input type="range" id="max-threads" class="max-threads" min="1" max="100" value="100" step="1"
           style="flex-grow: 1;">
         <span class="threads-value" id="max-threads-int" style="min-width: 30px; text-align: right;">10</span>
       </div>
@@ -328,9 +332,23 @@
     <textarea readonly class="text hide mb-3" id="stat-area" placeholder=""></textarea>
     <!-- Placeholder updated by JS -->
 
-    <!-- Bilingual Output Area -->
+<!-- Bilingual Output Area -->
     <div id="output"></div>
   </section>
+
+  <!-- START: Info Modal -->
+  <div id="info-modal" class="modal-overlay hide">
+    <div class="modal-content">
+      <button id="info-modal-close" class="modal-close-button">&times;</button>
+      <h2 id="info-modal-title"></h2>
+      <p id="info-modal-text1"></p>
+      <p id="info-modal-text2"></p>
+      <p id="info-modal-link-paragraph">
+        <a href="https://tts.travisvn.com/" target="_blank" rel="noopener noreferrer" id="info-modal-link"></a>
+      </p>
+    </div>
+  </div>
+  <!-- END: Info Modal -->
 
 </body>
 
