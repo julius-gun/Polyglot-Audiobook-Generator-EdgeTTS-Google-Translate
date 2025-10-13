@@ -22,6 +22,7 @@ let multiLangBaseFilename = "MultiLangAudiobook"; // Default filename
 let failedMultiLanguageTasks = []; // Store failed tasks for retry
 let currentAudioSequenceForAssembly = []; // Store the audio sequence map for retries
 let multiLangAudioCache = new Map(); // Cache for successful audio parts across runs
+let multiLangJobTotalTasks = 0; // Store the total number of tasks for the entire job
 
 
 // Constants for translation batching
@@ -47,6 +48,7 @@ async function generateMultiLanguageAudio(sourceLang, sourceVoice, targets) {
     failedMultiLanguageTasks = [];
     currentAudioSequenceForAssembly = [];
     multiLangAudioCache.clear();
+    multiLangJobTotalTasks = 0;
 
 
     const sourceText = document.getElementById('source-text').value;
@@ -294,6 +296,7 @@ async function generateMultiLanguageAudio(sourceLang, sourceVoice, targets) {
 
 
     const allAudioTasks = Array.from(uniqueAudioJobs.values());
+    multiLangJobTotalTasks = allAudioTasks.length;
 
     if (allAudioTasks.length === 0) {
         console.error("No valid audio tasks could be created.");
@@ -324,7 +327,7 @@ async function generateMultiLanguageAudio(sourceLang, sourceVoice, targets) {
         const processedText = fetchTranslation('statusProcessed', currentLanguage);
         const etaText = fetchTranslation('eta', currentLanguage);
         const calculatingText = fetchTranslation('statusCalculating', currentLanguage);
-        progressInfo.innerHTML = `<span>${processedText}: 0 / ${allAudioTasks.length}</span> | <span>${etaText}: ${calculatingText}</span>`;
+        progressInfo.innerHTML = `<span>${processedText}: 0 / ${multiLangJobTotalTasks}</span> | <span>${etaText}: ${calculatingText}</span>`;
     }
 
     if (multiLangPipelineManager) {
@@ -372,10 +375,10 @@ function handleMultiLangAudioProgress(progressData) {
     const progressBar = document.getElementById('progress-bar');
     const progressInfo = document.getElementById('progress-info');
 
-    if (total === 0) return;
+    if (multiLangJobTotalTasks === 0) return;
 
-    const completed = processed + failed;
-    const percent = Math.round((completed / total) * 100);
+    const totalSuccess = multiLangAudioCache.size + processed;
+    const percent = Math.round((totalSuccess / multiLangJobTotalTasks) * 100);
 
     if (progressBar) {
         progressBar.style.width = percent + '%';
@@ -391,11 +394,8 @@ function handleMultiLangAudioProgress(progressData) {
         const failedText = fetchTranslation('statusFailedLabel', currentLanguage);
         const etaText = fetchTranslation('eta', currentLanguage);
 
-        const totalSuccess = multiLangAudioCache.size + processed;
-        const totalTasksInJob = totalSuccess + failed;
-
         progressInfo.innerHTML = `
-            <span>${processedText}: ${totalSuccess} / ${totalTasksInJob}</span> |
+            <span>${processedText}: ${totalSuccess} / ${multiLangJobTotalTasks}</span> |
             ${failed > 0 ? `<span style="color: red;">${failedText} ${failed}</span> |` : ''}
             <span>${etaText}: ${etaString}</span>
         `;
@@ -422,7 +422,6 @@ async function handleMultiLangAudioComplete(completionData, audioSequenceForAsse
 
     if (failed > 0) {
         const totalSuccess = multiLangAudioCache.size;
-        const totalTasksInJob = totalSuccess + failed;
 
         let finalMessage = `\n--- ${fetchTranslation('audioGenFailedMessage', currentLanguage)} ---`;
         const detailsTemplate = fetchTranslation('audioGenFailedDetails', currentLanguage);
@@ -434,7 +433,7 @@ async function handleMultiLangAudioComplete(completionData, audioSequenceForAsse
             const failedText = fetchTranslation('statusFailedLabel', currentLanguage);
             const failedExclaimText = fetchTranslation('statusFailedExclaim', currentLanguage);
             progressInfo.innerHTML = `
-                <span>${processedText}: ${totalSuccess} / ${totalTasksInJob}</span> |
+                <span>${processedText}: ${totalSuccess} / ${multiLangJobTotalTasks}</span> |
                 <span style="color: red;">${failedText} ${failed}</span> |
                 <span style="color: red;">${failedExclaimText}</span>
             `;
@@ -442,7 +441,7 @@ async function handleMultiLangAudioComplete(completionData, audioSequenceForAsse
         if (progressBar) {
             const failedProgressTemplate = fetchTranslation('statusFailedProgress', currentLanguage);
             progressBar.style.backgroundColor = '#dc3545';
-            progressBar.textContent = formatString(failedProgressTemplate, failed, totalTasksInJob);
+            progressBar.textContent = formatString(failedProgressTemplate, failed, multiLangJobTotalTasks);
         }
 
         // Store failed tasks for retry and show the button
@@ -464,7 +463,7 @@ async function handleMultiLangAudioComplete(completionData, audioSequenceForAsse
     const totalSuccess = multiLangAudioCache.size;
     let finalMessage = `\n--- ${fetchTranslation('audioGenSuccessMessage', currentLanguage)} ---`;
     const successDetailsTemplate = fetchTranslation('audioGenSuccessDetails', currentLanguage);
-    finalMessage += `\n${formatString(successDetailsTemplate, totalSuccess, totalSuccess)}`;
+    finalMessage += `\n${formatString(successDetailsTemplate, totalSuccess, multiLangJobTotalTasks)}`;
     finalMessage += `\n--- ${fetchTranslation('statusMergingAudio', currentLanguage)} ---`;
     if (statArea) statArea.value += finalMessage;
 
@@ -472,7 +471,7 @@ async function handleMultiLangAudioComplete(completionData, audioSequenceForAsse
         const processedText = fetchTranslation('statusProcessed', currentLanguage);
         const finishedExclaimText = fetchTranslation('statusFinishedExclaim', currentLanguage);
         progressInfo.innerHTML = `
-            <span>${processedText}: ${totalSuccess} / ${totalSuccess}</span> |
+            <span>${processedText}: ${totalSuccess} / ${multiLangJobTotalTasks}</span> |
             <span>${finishedExclaimText}</span>
         `;
     }
@@ -690,12 +689,11 @@ async function retryFailedMultiLanguageAudio() {
         progressBar.style.backgroundColor = '';
     }
 
-    const totalTasksInJob = multiLangAudioCache.size + failedMultiLanguageTasks.length;
     if (progressInfo) {
         const processedText = fetchTranslation('statusProcessed', currentLanguage);
         const etaText = fetchTranslation('eta', currentLanguage);
         const calculatingText = fetchTranslation('statusCalculating', currentLanguage);
-        progressInfo.innerHTML = `<span>${processedText}: ${multiLangAudioCache.size} / ${totalTasksInJob}</span> | <span>${etaText}: ${calculatingText}</span>`;
+        progressInfo.innerHTML = `<span>${processedText}: ${multiLangAudioCache.size} / ${multiLangJobTotalTasks}</span> | <span>${etaText}: ${calculatingText}</span>`;
     }
 
     // 4. Get tasks and clear array

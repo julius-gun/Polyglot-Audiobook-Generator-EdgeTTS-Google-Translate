@@ -26,6 +26,7 @@ let currentMergeSettings = { enabled: false, chunkSize: Infinity }; // Store mer
 let currentAudioSettings = {}; // Store audio settings for potential retries
 let failedSingleLanguageTasks = []; // Store failed tasks for retry
 let successfulSingleLanguageResults = []; // Store successful instances across runs
+let currentJobTotalTasks = 0; // Store the total number of tasks for the entire job
 
 
 // --- Text Chunking ---
@@ -77,6 +78,7 @@ async function generateSingleLanguageAudiobook() {
 
     // Reset state for a fresh run
     successfulSingleLanguageResults = [];
+    currentJobTotalTasks = 0; // Reset total tasks for new job
 
     // 1. Get UI elements
     const sourceTextArea = document.getElementById('source-text');
@@ -173,6 +175,7 @@ async function generateSingleLanguageAudiobook() {
     // 6. Process text using the chunking function
     console.log("Processing text using chunkTextForAudio...");
     const audioChunks = chunkTextForAudio(sourceText, TARGET_CHUNK_LENGTH);
+    currentJobTotalTasks = audioChunks.length;
 
     if (audioChunks.length === 0) {
         // Use fetchTranslation for the alert
@@ -190,7 +193,7 @@ async function generateSingleLanguageAudiobook() {
         const etaText = fetchTranslation('eta', currentLanguage);
         const calculatingText = fetchTranslation('statusCalculating', currentLanguage);
         // Ensure the total count is updated correctly here
-        progressInfo.innerHTML = `<span>${processedText}: 0 / ${audioChunks.length}</span> | <span>${etaText}: ${calculatingText}</span>`;
+        progressInfo.innerHTML = `<span>${processedText}: 0 / ${currentJobTotalTasks}</span> | <span>${etaText}: ${calculatingText}</span>`;
     }
 
     // 7. Configure and Start the Pipeline
@@ -237,10 +240,10 @@ function handlePipelineProgress(progressData) {
     const progressBar = document.getElementById('progress-bar');
     const progressInfo = document.getElementById('progress-info');
 
-    if (total === 0) return; // Avoid division by zero
+    if (currentJobTotalTasks === 0) return;
 
-    const completed = processed + failed;
-    const percent = Math.round((completed / total) * 100);
+    const totalSuccess = successfulSingleLanguageResults.length + processed;
+    const percent = Math.round((totalSuccess / currentJobTotalTasks) * 100);
 
     if (progressBar) {
         progressBar.style.width = percent + '%';
@@ -259,12 +262,8 @@ function handlePipelineProgress(progressData) {
         const failedText = fetchTranslation('statusFailedLabel', currentLanguage);
         const etaText = fetchTranslation('eta', currentLanguage);
 
-        // Update progress info with combined count of all successful parts so far
-        const totalSuccess = successfulSingleLanguageResults.length + processed;
-        const totalCompleted = totalSuccess + failed;
-
         progressInfo.innerHTML = `
-            <span>${processedText}: ${totalSuccess} / ${total}</span> |
+            <span>${processedText}: ${totalSuccess} / ${currentJobTotalTasks}</span> |
             ${failed > 0 ? `<span>${failedText} ${failed}</span> |` : ''}
             <span>${etaText}: ${etaString}</span>
         `;
@@ -304,14 +303,13 @@ async function handlePipelineComplete(completionData) {
         if (statArea) statArea.value += finalMessage;
 
         const totalSuccess = successfulSingleLanguageResults.length;
-        const totalTasksInJob = totalSuccess + failed; // Total tasks across all runs so far
 
         if (progressInfo) {
             const processedText = fetchTranslation('statusProcessed', currentLanguage);
             const failedText = fetchTranslation('statusFailedLabel', currentLanguage);
             const failedExclaimText = fetchTranslation('statusFailedExclaim', currentLanguage);
             progressInfo.innerHTML = `
-                <span>${processedText}: ${totalSuccess} / ${totalTasksInJob}</span> |
+                <span>${processedText}: ${totalSuccess} / ${currentJobTotalTasks}</span> |
                 <span style="color: red;">${failedText} ${failed}</span> |
                 <span style="color: red;">${failedExclaimText}</span>
             `;
@@ -319,7 +317,7 @@ async function handlePipelineComplete(completionData) {
         if (progressBar) {
             const failedProgressTemplate = fetchTranslation('statusFailedProgress', currentLanguage);
             progressBar.style.backgroundColor = '#dc3545';
-            progressBar.textContent = formatString(failedProgressTemplate, failed, totalTasksInJob);
+            progressBar.textContent = formatString(failedProgressTemplate, failed, currentJobTotalTasks);
         }
 
         // Store original text of failed tasks for retry
@@ -339,7 +337,7 @@ async function handlePipelineComplete(completionData) {
     const totalSuccess = successfulSingleLanguageResults.length;
     let finalMessage = `\n--- ${fetchTranslation('audioGenSuccessMessage', currentLanguage)} ---`;
     const successDetailsTemplate = fetchTranslation('audioGenSuccessDetails', currentLanguage);
-    finalMessage += `\n${formatString(successDetailsTemplate, totalSuccess, totalSuccess)}`;
+    finalMessage += `\n${formatString(successDetailsTemplate, totalSuccess, currentJobTotalTasks)}`;
     finalMessage += "\n---";
 
     if (statArea) statArea.value += finalMessage;
@@ -348,7 +346,7 @@ async function handlePipelineComplete(completionData) {
         const processedText = fetchTranslation('statusProcessed', currentLanguage);
         const finishedExclaimText = fetchTranslation('statusFinishedExclaim', currentLanguage);
         progressInfo.innerHTML = `
-            <span>${processedText}: ${totalSuccess} / ${totalSuccess}</span> |
+            <span>${processedText}: ${totalSuccess} / ${currentJobTotalTasks}</span> |
             <span>${finishedExclaimText}</span>
         `;
     }
@@ -674,8 +672,7 @@ async function retryFailedSingleLanguageTasks() {
         const processedText = fetchTranslation('statusProcessed', currentLanguage);
         const etaText = fetchTranslation('eta', currentLanguage);
         const calculatingText = fetchTranslation('statusCalculating', currentLanguage);
-        const totalTasksInJob = successfulSingleLanguageResults.length + failedSingleLanguageTasks.length;
-        progressInfo.innerHTML = `<span>${processedText}: ${successfulSingleLanguageResults.length} / ${totalTasksInJob}</span> | <span>${etaText}: ${calculatingText}</span>`;
+        progressInfo.innerHTML = `<span>${processedText}: ${successfulSingleLanguageResults.length} / ${currentJobTotalTasks}</span> | <span>${etaText}: ${calculatingText}</span>`;
     }
 
 
