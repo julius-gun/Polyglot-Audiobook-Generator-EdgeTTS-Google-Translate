@@ -179,9 +179,13 @@ class SocketEdgeTTS {
 			this.update_stat(fetchTranslation('statusSentRequest', currentLanguage)); // Use fetchTranslation
 		} catch (error) {
 			console.error(`Error sending data on WebSocket for part ${this.indexpart + 1}:`, error);
-			this.update_stat(fetchTranslation('statusErrorSendingRequest', currentLanguage)); // Use fetchTranslation
-			this._triggerCallback(true); // Signal error
-			this.clear(); // Close socket if send fails
+		this.update_stat(fetchTranslation('statusErrorSendingRequest', currentLanguage));
+        
+        // CHANGED: Instead of failing immediately, close the socket.
+        // This triggers onSocketClose, which will detect unclean closure and trigger the standard retry logic.
+        if (this.socket) {
+            this.socket.close();
+        }
 		}
 	}
 
@@ -209,7 +213,9 @@ class SocketEdgeTTS {
 			console.warn(`Part ${this.indexpart + 1}: Received 'turn.end' but no audio data blobs.`);
 			this.update_stat(fetchTranslation('statusErrorNoAudio', currentLanguage)); // Use fetchTranslation
 			this.mp3_saved = false;
-			this._triggerCallback(true); // Signal error: completed but no data
+        // CHANGED: Do NOT trigger final callback. Just return.
+        // Since mp3_saved is false, onSocketClose will handle the retry.
+        if (this.socket) this.socket.close(); // Ensure closure
 			return;
 		}
 
@@ -256,14 +262,16 @@ class SocketEdgeTTS {
 				console.warn(`Part ${this.indexpart + 1}: Processed blobs but result is empty.`);
 				this.update_stat(fetchTranslation('statusErrorEmptyAudio', currentLanguage)); // Use fetchTranslation
 				this.mp3_saved = false;
-				this._triggerCallback(true); // Signal error: processed but empty
+             // CHANGED: Do NOT trigger final callback.
+             if (this.socket) this.socket.close();
 			}
 
 		} catch (error) {
 			console.error(`Error processing audio blobs for part ${this.indexpart + 1}:`, error);
 			this.update_stat(fetchTranslation('statusErrorProcessingAudio', currentLanguage)); // Use fetchTranslation
 			this.mp3_saved = false;
-			this._triggerCallback(true); // Signal error during processing
+         // CHANGED: Do NOT trigger final callback.
+         if (this.socket) this.socket.close();
 		}
 	}
 
@@ -296,7 +304,7 @@ class SocketEdgeTTS {
 		// Determine if the closure was expected (after processing) or unexpected
 		// A clean closure requires 'turn.end' and successfully processed audio data
 		const cleanClosure = this.end_message_received && this.mp3_saved;
-		const errorClosure = !this.end_message_received || !this.mp3_saved;
+	// const errorClosure = !this.end_message_received || !this.mp3_saved; // Not used but implicit
 
 		if (cleanClosure) {
 			// Only update to "Completed" if it wasn't already marked as failed during processing
@@ -385,8 +393,9 @@ class SocketEdgeTTS {
 		// Check if a callback has already been triggered (e.g., by onSocketClose)
 		if (!this.callbackCalled) {
 			console.error(`WebSocket Error for part ${this.indexpart + 1}:`, event);
-			// Attempt retry or signal final failure
-			this._handleErrorOrRetry("statusErrorWebSocket"); // Pass key
+        // CHANGED: We do NOT trigger retry here anymore to prevent double-firing.
+        // onSocketClose will always follow onSocketError, so we let onSocketClose handle the retry logic.
+		// this._handleErrorOrRetry("statusErrorWebSocket"); 
 		} else {
 			console.warn(`WebSocket Error for part ${this.indexpart + 1} occurred after completion callback was already triggered.`, event);
 		}

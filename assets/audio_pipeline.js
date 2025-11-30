@@ -36,7 +36,7 @@ class AudioPipelineManager {
      * @param {boolean} config.mergeSettings.enabled - Whether merging is enabled.
      * @param {number} config.mergeSettings.chunkSize - Number of parts per merged file (Infinity for all).
      * @param {HTMLElement} config.statArea - The UI element for status updates.
-     * @param {object} [config.retrySettings={ maxRetries: 20, delay: 5000 }] - Retry configuration for failed tasks.
+ * @param {object} [config.retrySettings={ maxRetries: 10000, delay: 5000 }] - Retry configuration for failed tasks.
      * @param {number} config.retrySettings.maxRetries - Maximum number of retries per task.
      * @param {number} config.retrySettings.delay - Delay in milliseconds between retries.
      * @param {function(object):void} [config.onProgress] - Callback for progress updates. Receives { processed, failed, total, etaSeconds }.
@@ -53,7 +53,8 @@ class AudioPipelineManager {
         this.mergeSettings = { enabled: false, chunkSize: Infinity, ...config.mergeSettings };
         this.statArea = config.statArea; // Required for task updates
         // --- ADDED: Retry Settings ---
-        this.retrySettings = { maxRetries: 20, delay: 5000, ...config.retrySettings }; // Default retries
+    // CHANGED: Default maxRetries increased to 10000 for extreme robustness
+    this.retrySettings = { maxRetries: 10000, delay: 5000, ...config.retrySettings }; 
 
         // --- Callbacks ---
         this.onProgress = config.onProgress;

@@ -1,8 +1,36 @@
 // Contains text processing utility functions
 
 function splitIntoSentences(text) {
-  const sentenceRegex = /(?<!\p{Lu}\.\p{Ll}\.)(?<![A-Z][a-z]\.)(?<![A-Z]\.)(?<!etc\.)(?<!e\.g\.)(?<!i\.e\.)(?<!\p{Lu}\.)(?<=\.|\?|!|。|？|！)(?:\s+)(?=(?:\p{Lu}|\p{N}|\s))/gu;
-  let sentences = text.replace(/\n/g, " ").split(sentenceRegex);  // Split and handle newlines
+  // 1. Normalize newlines to spaces
+  let cleanText = text.replace(/\n/g, " ");
+
+  // 2. Fix missing spaces (Sanitization)
+  // Case A: "drawing.Men" -> "drawing. Men" (Lowercase, Punctuation, Uppercase)
+  cleanText = cleanText.replace(/(\p{Ll})([.?!])(\p{Lu})/gu, "$1$2 $3");
+  // Case B: "baobabs!”My" -> "baobabs!” My" (Punctuation, Quote, Uppercase)
+  cleanText = cleanText.replace(/([.?!]['"”])(\p{Lu})/gu, "$1 $2");
+  // Case C: "knowing it;and" -> "knowing it; and" (Semicolon followed by any letter)
+  cleanText = cleanText.replace(/([;])(\p{L})/gu, "$1 $2");
+
+  // // 3. Use Intl.Segmenter if available (The "Better Structured Solution")
+  // if (typeof Intl !== 'undefined' && Intl.Segmenter) {
+  //   const segmenter = new Intl.Segmenter(undefined, { granularity: 'sentence' });
+  //   return Array.from(segmenter.segment(cleanText))
+  //     .map(segment => segment.segment.trim())
+  //     .filter(s => s.length > 0);
+  // }
+
+  // 4. Fallback Regex
+  // Updated (?:\s+) to \s* to allow splitting even if space is missing (though step 2 covers most cases)
+  const standardSplit = "(?<!\\p{Lu}\\.\\p{Ll}\\.)(?<![A-Z][a-z]\\.)(?<![A-Z]\\.)(?<!etc\\.)(?<!e\\.g\\.)(?<!i\\.e\\.)(?<!\\p{Lu}\\.)(?<=[.?!]['\"”]?)\\s+(?=(?:['\"“]\\s*)?[\\p{Lu}\\p{N}])";
+  
+  // Rule 2: Semicolon (;)
+  // - Can be followed by ANY letter (\p{L}) or Number (allows lowercase start), optionally preceded by an opening quote
+  const semicolonSplit = "(?<=;['\"”]?)\\s+(?=(?:['\"“]\\s*)?[\\p{L}\\p{N}])";
+
+  const sentenceRegex = new RegExp(`${standardSplit}|${semicolonSplit}`, "gu");
+
+  let sentences = cleanText.split(sentenceRegex);
   return sentences.filter(sentence => sentence.trim() !== ""); // Remove empty sentences
 }
 
@@ -28,7 +56,27 @@ function mergeShortSentences(sentences) {
 
   // Add the last sentence
   if (previousSentence.length > 0) {
-    mergedSentences.push(previousSentence);
+    mergedSente  // 1. Normalize newlines to spaces
+    let cleanText = text.replace(/\n/g, " ");
+
+    // 2. Fix missing spaces between sentences (e.g., "drawing.Men" -> "drawing. Men")
+    // Look for: Lowercase letter (\p{Ll}) + Punctuation + Uppercase letter (\p{Lu})
+    cleanText = cleanText.replace(/(\p{Ll})([.?!])(\p{Lu})/gu, "$1$2 $3");
+
+    // 3. Use Intl.Segmenter if available (The "Better Structured Solution")
+    if (typeof Intl !== 'undefined' && Intl.Segmenter) {
+      const segmenter = new Intl.Segmenter(undefined, { granularity: 'sentence' });
+      return Array.from(segmenter.segment(cleanText))
+        .map(segment => segment.segment.trim())
+        .filter(s => s.length > 0);
+    }
+
+    // 4. Fallback Regex
+    // Updated (?:\s+) to \s* to allow splitting even if space is missing (though step 2 covers most cases)
+    const sentenceRegex = /(?<!\p{Lu}\.\p{Ll}\.)(?<![A-Z][a-z]\.)(?<![A-Z]\.)(?<!etc\.)(?<!e\.g\.)(?<!i\.e\.)(?<!\p{Lu}\.)(?<=\.|\?|!|。|？|！)\s*(?=(?:\p{Lu}|\p{N}|\s))/gu;
+
+    return cleanText.split(sentenceRegex).filter(sentence => sentence.trim() !== "");
+    nces.push(previousSentence);
   }
 
   return mergedSentences;
